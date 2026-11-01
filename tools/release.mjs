@@ -62,7 +62,8 @@ let release = existing.status === 200 ? existing.json : null;
 if (!release) {
   const created = await api('POST', `/repos/${OWNER}/${REPO}/releases`, {
     tag_name: VERSION,
-    name: `知乎热榜屏蔽 B 站推荐 ${VERSION}`,
+    // 标题只写版本号，不要重复项目名——GitHub 上已经显示仓库名了
+    name: VERSION,
     body: BODY,
     target_commitish: 'main',
     draft: false,
