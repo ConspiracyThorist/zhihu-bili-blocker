@@ -19,6 +19,42 @@
 
     <section class="card">
       <div class="row">
+        <span class="label">拦截强度</span>
+        <span id="modeName" class="value muted">标准</span>
+      </div>
+      <div class="modes" id="modes"></div>
+    </section>
+
+    <section class="card stats">
+      <div class="stat"><b id="sessionHits">0</b><span>最近记录</span></div>
+      <div class="stat"><b id="totalHits">0</b><span>累计拦截</span></div>
+      <div class="stat"><b id="poolCount">0</b><span>题库条目</span></div>
+    </section>
+
+    <section class="card grow">
+      <div class="row">
+        <span class="label">最近拦截</span>
+        <span id="recordCount" class="value muted">0</span>
+      </div>
+      <ul id="records" class="records"></ul>
+      <p id="empty" class="empty">还没有拦截记录。刷一下 B 站首页看看。</p>
+    </section>
+
+    <details class="card">
+      <summary>高级设置</summary>
+      <div class="row">
+        <span class="label">精确阈值</span>
+        <span id="thresholdValue" class="value">0.72</span>
+      </div>
+      <input id="threshold" class="range" type="range" min="0.6" max="0.92" step="0.01" />
+      <div class="range-legend">
+        <span>更严 · 少误伤</span>
+        <span>更宽 · 多拦截</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="row">
         <span class="label">题库</span>
         <span id="hotInfo" class="value">读取中…</span>
       </div>
@@ -31,9 +67,9 @@
         <button id="refresh" class="btn">刷新热榜</button>
         <span id="refreshHint" class="hint"></span>
       </div>
-    </section>
 
-    <section class="card">
+      <div class="divider"></div>
+
       <div class="row">
         <span class="label">远端题库源</span>
         <span id="seedMeta" class="value muted">未启用</span>
@@ -43,32 +79,11 @@
         <button id="syncSeed" class="btn ghost">同步题库</button>
         <span id="seedHint" class="hint"></span>
       </div>
-    </section>
-
-    <section class="card">
-      <div class="row">
-        <span class="label">相似度阈值</span>
-        <span id="thresholdValue" class="value">0.72</span>
-      </div>
-      <input id="threshold" class="range" type="range" min="0.6" max="0.92" step="0.01" />
-      <div class="range-legend">
-        <span>更严 · 少误伤</span>
-        <span>更宽 · 多拦截</span>
-      </div>
-    </section>
-
-    <section class="card grow">
-      <div class="row">
-        <span class="label">最近屏蔽</span>
-        <span id="recordCount" class="value muted">0</span>
-      </div>
-      <ul id="records" class="records"></ul>
-      <p id="empty" class="empty">还没有拦截记录。刷一下 B 站首页看看。</p>
-    </section>
+    </details>
 
     <footer class="foot">
       <button id="clear" class="btn ghost">清空记录</button>
-      <span class="version">v1.0.0</span>
+      <span class="version">v1.1.0</span>
     </footer>
 
     <script src="popup.js"></script>
