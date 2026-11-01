@@ -16,33 +16,37 @@ const H = {
   'content-type': 'application/json',
 };
 
-const BODY = `B 站首页有一类视频，标题直接就是知乎的问题。这个扩展把热榜标题当字典，推荐流里出现长得像的，在渲染前摘掉——卡片压根不出现。
+const BODY = `同步知乎热榜标题，与 B 站首页推荐流做模糊匹配，在**渲染前**移除搬运视频。
 
-## 📥 装哪个
+## 📥 下载
 
-[zhihu-bili-blocker.zip](${DL}/zhihu-bili-blocker.zip) — Chrome 扩展。解压后在 \`chrome://extensions\` 打开开发者模式，点「加载已解压的扩展程序」。
+[zhihu-bili-blocker.zip](${DL}/zhihu-bili-blocker.zip) — Chrome 扩展。解压后在 \`chrome://extensions\` 启用「开发者模式」，点击「加载已解压的扩展程序」。
 
-油猴脚本不放 Release，直接点这条装：
+油猴脚本不随 Release 发布，安装地址：
 
 https://fastly.jsdelivr.net/gh/${OWNER}/${REPO}@main/zhihu-bili-blocker.user.js
 
-下载卡住的话，链接前面加 \`https://gh-proxy.com/\` 走镜像。
+> 下载缓慢时可在链接前加 \`https://gh-proxy.com/\` 走镜像。
 
-## ✨ 这版有什么
+## ✨ 本版内容
 
-- 三档强度：保守 / 标准 / 激进。不用懂阈值也能选，想抠数字再展开高级设置
-- 右下角一个小胶囊，露「已拦截 / 累计」两个数。点开看最近 5 条，能就地放行；拖着能挪，位置会记住
-- 题库本地攒 30 天，最多 800 条。满 7 天的条目自动抬高分数线
-- 远端题库每天同步，装完就有 250+ 条打底
-- 失败一律放行。接口 401、解析出错、列表没到，原样返回，不会白屏
+- 三档拦截强度（保守 / 标准 / 激进），精确阈值位于「高级设置」
+- 页面浮窗显示「已拦截 / 累计」，可展开最近 5 条并执行放行，支持拖拽与位置持久化
+- 本地题库保留 30 天、上限 800 条；超过 7 天的条目匹配阈值自动提高 0.05
+- 远端题库每日同步，首次安装即可使用 250+ 条
+- 接口异常时一律放行，不影响页面正常渲染
 
-## 🎯 只管首页
+## 🎯 覆盖范围
 
-热门榜、搜索结果、播放页侧栏都不处理。
+仅处理 B 站首页推荐流，不含热门榜、搜索结果与播放页侧栏。
 
 ## 🛠 源码
 
 https://github.com/${OWNER}/${REPO}
+
+## 📄 许可证
+
+[MIT](https://github.com/${OWNER}/${REPO}/blob/main/LICENSE)
 `;
 
 async function api(method, path, body) {
