@@ -1,0 +1,5 @@
+# 体检工具的中间产物，不进仓库
+seed.meta.json
+
+node_modules/
+.DS_Store
