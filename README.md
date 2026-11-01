@@ -1,111 +1,127 @@
 # 知乎热榜屏蔽 B 站推荐
 
-B 站首页有一类视频，标题直接就是知乎的问题。「如何看待 AI 取代程序员」「为什么现在的年轻人不愿意结婚了」，点进去，就是把高赞回答念一遍。
+[![Release](https://img.shields.io/github/v/release/ConspiracyThorist/zhihu-bili-blocker?label=release)](https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases)
+[![License](https://img.shields.io/github/license/ConspiracyThorist/zhihu-bili-blocker)](LICENSE)
+[![Chrome](https://img.shields.io/badge/Chrome-111%2B-blue)](https://www.google.com/chrome/)
+[![Userscript](https://img.shields.io/badge/Userscript-Tampermonkey-orange)](https://www.tampermonkey.net/)
 
-这个扩展干的事很简单：把热榜标题当字典，B 站推荐流里出现长得像的，在渲染前摘掉。
+同步知乎热榜标题，与 B 站首页推荐流做模糊匹配，在**渲染前**移除搬运视频。提供 Chrome 扩展与油猴脚本两种形态。
 
-摘掉的意思是卡片压根不会出现。不是先冒出来闪一下再消失。
+![界面预览](reports/screenshots/page.png)
 
-## 📦 装
+## ✨ 特性
 
-两个版本，挑一个就行。
+- **渲染前拦截**：在页面解析 feed JSON 之前移除命中项，卡片不会先出现再消失
+- **只看标题**：不依赖 UP 主、分区、发布时间，换账号搬运同样生效
+- **模糊匹配**：四级判定（精确 / 包含 / bigram 相似度 / 覆盖率），能识别加前后缀、删减、等长改写的搬运
+- **本地题库**：热榜标题累积为本地词库，默认保留 30 天、上限 800 条，越界自动淘汰
+- **远端同步**：每日从 CDN 拉取公共词库，首次安装即有 250+ 条可用
+- **失败放行**：接口异常、解析失败、数据未就绪时原样返回，不影响正常浏览
+- **纯本地运行**：不上传任何数据，权限仅 `storage` 与 `alarms`
 
-**Chrome 扩展**
+## 🚀 安装
 
-去 [Releases](https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/latest) 下载 `zhihu-bili-blocker.zip`，解压。地址栏敲 `chrome://extensions`，右上角打开「开发者模式」，点「加载已解压的扩展程序」，选中刚解压的那个文件夹。刷新 B 站首页。
+### Chrome 扩展
 
-要 Chrome 111 以上。低版本用不了，因为拦截靠的是 `world: "MAIN"` 那个注入方式。
+1. 从 [Releases](https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/latest) 下载 `zhihu-bili-blocker.zip` 并解压
+2. 打开 `chrome://extensions`，启用「开发者模式」
+3. 点击「加载已解压的扩展程序」，选择解压后的目录
+4. 刷新 B 站首页
 
-下载卡住的话，链接前面加 `https://gh-proxy.com/` 走镜像：
+> 需要 Chrome 111 及以上（依赖 `world: "MAIN"` 的 content script）。
+>
+> 下载缓慢时可在链接前加 `https://gh-proxy.com/` 走镜像。
 
-```
-https://gh-proxy.com/https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/download/v1.0.0/zhihu-bili-blocker.zip
-```
+### 油猴脚本
 
-**油猴脚本**
+1. 安装 [Tampermonkey](https://www.tampermonkey.net/)
+2. 点击下方链接，Tampermonkey 会自动弹出安装页
 
-先装 [Tampermonkey](https://www.tampermonkey.net/)，然后点这条。它会自己弹安装框：
+   ```
+   https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/zhihu-bili-blocker.user.js
+   ```
 
-```
-https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/zhihu-bili-blocker.user.js
-```
+3. 刷新 B 站首页
 
-CDN 打不开就换这条：
+备用地址（CDN 不可用时）：
 
 ```
 https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/zhihu-bili-blocker.user.js
 ```
 
-脚本不进 Release，只作为仓库里的文件维护。想看源码直接打开 [zhihu-bili-blocker.user.js](zhihu-bili-blocker.user.js)。
+> 油猴脚本不随 Release 发布，仅在仓库中维护，源码见 [zhihu-bili-blocker.user.js](zhihu-bili-blocker.user.js)。
 
-装完刷新首页，右下角会多出一个小胶囊。两个版本装一起也不打架。
+## 📖 使用
 
-## 👀 用
+### 页面浮窗
 
-胶囊平时就露两个数字：这次打开页面拦了几条，历史上总共拦了多少。
+右下角浮窗显示两个数值：**已拦截**（本次页面加载后拦截数）与**累计**（历史总数）。点击展开最近 5 条记录，可对单条执行「放行」。浮窗支持拖拽，位置会持久化。
 
-鼠标移上去才变实，点一下展开最近 5 条命中。要是觉得某条拦错了，就地「放行」，它以后不再出现。
+### 扩展弹窗
 
-这个小东西可以拖着挪，位置会记住，下次打开还在原地。
+| 控件 | 说明 |
+| --- | --- |
+| 总开关 | 关闭后立即恢复已隐藏的卡片，无需刷新 |
+| 拦截强度 | 保守 / 标准 / 激进三档预设 |
+| 统计 | 最近记录、累计拦截、题库条目数 |
+| 最近拦截 | 显示「B 站标题 ← 知乎标题 + 匹配分数」，可加入白名单 |
 
-浏览器工具栏里的弹窗才是设置的地方。总开关关掉，已经藏起来的卡片会立刻回来——不用刷新。下面是统计：最近记录、累计拦截、题库条目。再往下是最近拦截的明细，格式是「B 站标题 ← 知乎标题 + 分数」，那个分数就是判定依据，觉得不对可以拿去调强度。
+刷新热榜、远端题库源等设置位于「高级设置」中。
 
-刷新热榜、远端题库源这些不常用，收在「高级设置」里。
+### 拦截强度
 
-## 强度
+| 档位 | 阈值 | 适用场景 |
+| --- | --- | --- |
+| 保守 | 0.80 | 仅拦截高度相似的标题，误伤率最低 |
+| 标准 | 0.72 | 默认，兼顾拦截率与误伤率 |
+| 激进 | 0.66 | 拦截改写幅度较大的搬运，误伤率上升 |
 
-三档，够用了。
+需要精确控制时，可在「高级设置」中直接调整阈值。
 
-| 档位 | 阈值 | 什么感觉 |
-|---|---|---|
-| 保守 | 0.80 | 只拦几乎原样照搬的。基本不会误伤，但也容易漏 |
-| 标准 | 0.72 | 默认。多数搬运能拦住，偶尔误伤一两条 |
-| 激进 | 0.66 | 改写过的也尽量拦。误伤明显变多，适合你特别烦这类内容的时候 |
+## ❓ 常见问题
 
-阈值这个东西，说白了是「标题差多远还算同一条」。想精确调，展开高级设置拖滑杆就行，不过我建议先用标准档跑几天，觉得不对再动。
+**看到搬运视频但未被拦截？**
 
-## 🧯 碰到问题
+先查看弹窗中的匹配分数。分数偏低说明标题相似度不足，可尝试切换至「激进」档位。若原标题被大幅改写，则超出当前匹配能力范围。
 
-**看到搬运却没被拦**
+**正常视频被误拦截？**
 
-先看弹窗里那条的分数。分数低，说明两个标题差挺远，这属于匹配本身的能力边界。可以调到激进档试试。
+点击「放行」加入白名单，或提高拦截强度档位。
 
-**误伤了正常视频**
+**题库数量长时间不增长？**
 
-点「放行」。它会进白名单，以后不再拦。或者干脆调到保守。
+知乎热榜每日更新约 20~30 条，30 天窗口的稳定容量为数百条。此外，仅约 15% 的词条能在 B 站找到对应视频，数量停滞属正常现象。
 
-**题库数字不动**
+**弹窗显示「从未成功」或同步失败？**
 
-正常的。热榜每天只换二三十条，30 天窗口攒到几百条就稳住了。而且这里面只有一小部分真能在 B 站找到对应视频——这点体检数据我写在开发文档里了。
+通常为知乎接口偶发 403 或远端题库源不可达。点击刷新可查看具体错误，扩展会继续使用上一次成功的数据。
 
-**弹窗显示「从未成功」**
+**B 站改版后完全失效？**
 
-多半是知乎接口偶发 403，或者远端题库源不通。点一下刷新看具体报错。扩展会留着上一份数据继续用，不会因为这个就罢工。
-
-**B 站改版后彻底没反应**
-
-等我更新选择器。这类改动集中在一个文件里，改几行的事。
+需更新选择器。相关逻辑集中在 `src/core/dom.ts`，通常为少量改动。
 
 ## 🔒 隐私
 
-不上传任何东西。题库、设置、屏蔽记录全在浏览器本地。
+本扩展不上传任何数据。题库、配置与拦截记录均存储于浏览器本地。
 
-只碰两个域名：B 站首页接口和知乎热榜接口。扩展权限只有 `storage` 和 `alarms`，没申请 `cookies`，所以读不到你的账号信息。
+网络请求仅涉及两个域名：B 站首页接口与知乎热榜接口。扩展权限仅申请 `storage` 与 `alarms`，未申请 `cookies`，无法读取账号信息。
 
-## 限制
+## ⚠️ 限制
 
-只管首页推荐。热门榜、搜索结果、播放页侧栏，都不处理。
+- 仅覆盖 B 站首页推荐流，不含热门榜、搜索结果与播放页侧栏
+- 仅比对标题，不分析视频内容、UP 主与评论
+- 中文短标题存在天然语义碰撞，无法保证零误伤，因此保留阈值与白名单双重兜底
 
-只比对标题。不看视频内容，不看 UP 主，不看评论。
+## 🧭 工作原理
 
-中文短标题天然会撞车，所以做不到「绝对不误伤」。留了阈值和白名单两道人肉兜底，就是这个原因。
+在页面解析推荐数据前修改 feed JSON，移除命中条目；接口未覆盖的首屏卡片由 DOM 层补充隐藏。
 
-## 原理
+实现细节见 [DEVELOP.md](DEVELOP.md)。
 
-在页面解析推荐数据之前，把命中项从 JSON 里摘掉。所以卡片从头到尾不出现。
+## 🤝 贡献
 
-接口没覆盖到的首屏卡片，DOM 层再补一刀。
+欢迎提交 Issue 与 Pull Request。修改代码前建议先阅读 [DEVELOP.md](DEVELOP.md) 了解架构与测试方式。
 
-## 🛠 开发
+## 📄 许可证
 
-构建、测试、题库生成和体检、发版流程，都在 [DEVELOP.md](DEVELOP.md)。
+[MIT](LICENSE)
