@@ -4,6 +4,9 @@ const TOKEN = (await readFile('D:\\test\\.github-token', 'utf8')).trim();
 const OWNER = 'ConspiracyThorist';
 const REPO = 'zhihu-bili-blocker';
 const VERSION = 'v1.0.0';
+const DL = `https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}`;
+/** 只改 Release 正文，不重建、不传附件 */
+const NOTES_ONLY = process.argv.includes('--notes');
 
 const H = {
   authorization: `Bearer ${TOKEN}`,
@@ -13,26 +16,31 @@ const H = {
   'content-type': 'application/json',
 };
 
-const BODY = `## 知乎热榜屏蔽 B 站推荐 ${VERSION}
+const BODY = `把知乎热榜当成一张过滤网。先拿到热榜标题，再去 B 站首页推荐里比对，命中就在**渲染前**摘掉——不是先冒出来再消失。
 
-把「知乎热榜」当过滤字典，在 B 站首页推荐里按标题做模糊匹配，命中就在**渲染前**摘掉——不是先显示再消失。
+## 📥 装哪个
 
-### 装哪个
+- [zhihu-bili-blocker.zip](${DL}/zhihu-bili-blocker.zip) — Chrome 扩展。解压后在 \`chrome://extensions\` 打开开发者模式，「加载已解压的扩展程序」
+- 油猴脚本不放 Release，直接装这条：
+  https://fastly.jsdelivr.net/gh/${OWNER}/${REPO}@main/zhihu-bili-blocker.user.js
 
-- **Chrome 扩展**（推荐）：下载 \`zhihu-bili-blocker.zip\`，解压后在 \`chrome://extensions\` 开启开发者模式，「加载已解压的扩展程序」
-- **油猴脚本**：下载 \`zhihu-bili-blocker.user.js\`，Tampermonkey 会自动提示安装
+> 下载卡住的话，链接前面加 \`https://gh-proxy.com/\` 走镜像。
 
-### 这版有什么
+## ✨ 这版有什么
 
-- **三档拦截强度**：保守 / 标准 / 激进，不用理解阈值也能选；精确滑杆收进「高级设置」
-- **右下角浮窗**：只显示「已拦截 / 累计」两个数，点开看最近 5 条，可就地放行
-- **题库池**：本地累积 30 天、上限 800 条，超过 7 天的条目自动抬高分数线
-- **远端题库**：每天同步一次，装了就有 250+ 条起步
-- **失败放行**：接口 401、解析异常、列表未就绪，一律原样放行，不会白屏
+- 三档强度：保守 / 标准 / 激进。不用理解阈值也能选，想抠数字再展开「高级设置」
+- 右下角小浮窗，只有「已拦截 / 累计」两个数。点开看最近 5 条，能就地放行；可以拖着放，位置会记住
+- 题库本地攒 30 天，最多 800 条。满 7 天的条目自动抬高分数线，少误伤
+- 远端题库每天同步一次，装完就有 250+ 条打底
+- 失败一律放行。接口 401、解析出错、列表没到，都原样返回，不会白屏
 
-### 覆盖范围
+## 🎯 只管首页
 
-只处理 B 站**首页推荐**，不含热门榜、搜索结果、播放页侧栏。
+B 站首页推荐这一处。热门榜、搜索结果、播放页侧栏都不在范围内。
+
+## 🛠 源码
+
+https://github.com/${OWNER}/${REPO}
 `;
 
 async function api(method, path, body) {
@@ -73,6 +81,12 @@ if (!release) {
   console.log('✓ 已创建 Release', release.html_url);
 } else {
   console.log('Release 已存在：', release.html_url);
+}
+
+if (NOTES_ONLY) {
+  const patched = await api('PATCH', `/repos/${OWNER}/${REPO}/releases/${release.id}`, { body: BODY });
+  console.log(patched.status === 200 ? '✓ 正文已更新' : `✗ 更新失败：${patched.status}`);
+  process.exit(patched.status === 200 ? 0 : 1);
 }
 
 // 附件只放扩展 zip。油猴脚本不进 Release，它作为仓库根目录的文件存在。
