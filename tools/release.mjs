@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 const TOKEN = (await readFile('D:\\test\\.github-token', 'utf8')).trim();
 const OWNER = 'ConspiracyThorist';
 const REPO = 'zhihu-bili-blocker';
-const VERSION = 'v1.1.0';
+const VERSION = 'v1.0.0';
 
 const H = {
   authorization: `Bearer ${TOKEN}`,
