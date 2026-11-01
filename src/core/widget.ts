@@ -26,7 +26,7 @@ export interface WidgetOptions {
 const STYLE = `
 :host { all: initial; }
 .pill {
-  position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 2147483640;
+  position: fixed; right: 18px; top: 42%; z-index: 2147483640;
   display: flex; align-items: center; gap: 7px;
   padding: 7px 12px; border-radius: 999px;
   background: rgba(20, 22, 27, 0.72);
@@ -34,7 +34,7 @@ const STYLE = `
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #d9dce2; font: 12px/1 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
   cursor: grab; opacity: 0.62; transition: opacity .15s, border-color .15s;
-  user-select: none; touch-action: none;
+  user-select: none; touch-action: none; white-space: nowrap;
 }
 .pill:hover { opacity: 1; border-color: rgba(255,255,255,.22); }
 .pill.open { opacity: 1; }
@@ -103,15 +103,6 @@ function createWidget(opts: WidgetOptions): {
     pill.style.top = `${y}px`;
     pill.style.right = 'auto';
     pill.style.transform = 'none';
-  };
-
-  const defaultPos = (): { x: number; y: number } => {
-    const r = pill.getBoundingClientRect();
-    return {
-      x: window.innerWidth - r.width - 18,
-      // 右中：稍微偏上一点，避开底部的播放器控制条和评论框
-      y: Math.round(window.innerHeight * 0.42 - r.height / 2),
-    };
   };
 
   const placePanel = (): void => {
@@ -335,21 +326,22 @@ function createWidget(opts: WidgetOptions): {
 
   document.documentElement.append(host);
 
-  // 恢复上次拖到的位置；没有记录就落在右中
+  // 只在用户拖过之后才切成 left/top 定位。
+  // 默认位置由 CSS 的 right 锚定——固定定位元素一旦给 left，宽度会按剩余空间收缩，
+  // 首帧量不到宽度就会把文案挤成竖排、甚至挤出屏幕。
   try {
     const saved = localStorage.getItem(POS_KEY);
     if (saved) {
       const pos = JSON.parse(saved) as { x: number; y: number };
       if (Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
-        applyPos(pos.x, pos.y);
+        applyPos(
+          clamp(pos.x, 4, Math.max(4, window.innerWidth - 160)),
+          clamp(pos.y, 4, Math.max(4, window.innerHeight - 40)),
+        );
       }
     }
   } catch {
-    /* 读不到就用默认位置 */
-  }
-  if (!pill.style.left) {
-    const base = defaultPos();
-    applyPos(base.x, base.y);
+    /* 读不到就用 CSS 默认位置 */
   }
   refresh();
 
