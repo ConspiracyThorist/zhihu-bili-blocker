@@ -19,7 +19,7 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 
-const DEFAULT_REPO = 'ConspiracyThorist/zhihu-bili-blocker-seed';
+const DEFAULT_REPO = 'ConspiracyThorist/zhihu-bili-blocker';
 const API = 'https://api.github.com';
 
 async function getToken() {
