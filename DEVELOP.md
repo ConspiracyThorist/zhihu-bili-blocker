@@ -33,7 +33,7 @@ npm run e2e     # 31 项浏览器端到端
 
 别忘了 `--charset=utf8`。不加的话中文会被转成一串 `\uXXXX`，运行没问题，但脚本贴在 GreasyFork 上没人看得下去。
 
-### E2E 上踩过的坑
+### 🕳 E2E 上踩过的坑
 
 **Chrome 137+ 不再理会 `--load-extension`。** 现在得用 `--enable-unsafe-extension-debugging` 启动，再用 CDP 的 `Extensions.loadUnpacked` 把 `dist/extension` 装进去。
 
@@ -41,7 +41,7 @@ npm run e2e     # 31 项浏览器端到端
 
 **受限沙箱里 Chrome 起不来。** crashpad 的 OpenProcess 和 mojo 命名管道都会被拒，进程直接 self-terminating。E2E 只能在普通桌面会话跑。
 
-## 匹配怎么做的
+## 🧠 匹配怎么做的
 
 两层，共用同一个判定函数：
 
@@ -131,7 +131,7 @@ B 站页面控制台敲 `__zbbDebug`：
 | `settled` | 就绪信号触发次数（>0 说明放行条件已满足） |
 | `fetchSrc` | `window.fetch` 是否已被接管 |
 
-## 仓库操作
+## 🐙 仓库操作
 
 这台机器上 `github.com` 不通，`git push` 用不了。只有 `api.github.com` 可达，所以写了两脚本代替 git：
 
