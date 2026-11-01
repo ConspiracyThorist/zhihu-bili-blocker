@@ -31,6 +31,12 @@
 2. 点下面这个链接，Tampermonkey 会自动弹安装框：
 
    ```
+   https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/zhihu-bili-blocker.user.js
+   ```
+
+   如果这个 CDN 打不开，换成：
+
+   ```
    https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/zhihu-bili-blocker.user.js
    ```
 
