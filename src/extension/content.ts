@@ -1,6 +1,7 @@
 import { startScanner } from '../core/dom';
 import { prepareHot, type HotEntry } from '../core/engine';
 import { splitByFreshness, type PoolEntry } from '../core/pool';
+import { mountWidget } from '../core/widget';
 import {
   DEFAULT_SETTINGS,
   KEYS,
@@ -8,18 +9,22 @@ import {
   type HitRecord,
   type HotPool,
   type Settings,
+  type Stats,
 } from '../core/types';
 
 /**
- * 隔离世界（默认 world）：负责 storage 读写、DOM 兜底层、以及与 MAIN world 的桥。
+ * 隔离世界（默认 world）：负责 storage 读写、DOM 兜底层、右下角浮窗、以及与 MAIN world 的桥。
  * MAIN world 拿不到 chrome.storage，所以这里是唯一的数据源。
  */
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let fresh: HotEntry[] = [];
 let stale: HotEntry[] = [];
 let records: HitRecord[] = [];
+let statsTotal = 0;
+let sessionHits = 0;
 let flushTimer = 0;
 let loaded = false;
+let widget: ReturnType<typeof mountWidget> | null = null;
 
 /** 池子按新鲜度切两段：老条目在匹配时要更高的分数 */
 function rebuild(entries: PoolEntry[]): void {
@@ -57,11 +62,17 @@ function pushRecord(record: HitRecord): void {
   if (!dup) {
     records.unshift(record);
     if (records.length > RECORD_LIMIT) records = records.slice(0, RECORD_LIMIT);
+    sessionHits += 1;
+    statsTotal += 1;
   }
+  widget?.refresh();
   if (flushTimer) return;
   flushTimer = window.setTimeout(() => {
     flushTimer = 0;
-    void chrome.storage.local.set({ [KEYS.records]: records });
+    void chrome.storage.local.set({
+      [KEYS.records]: records,
+      [KEYS.stats]: { total: statsTotal },
+    });
   }, 300);
 }
 
@@ -91,11 +102,13 @@ async function load(): Promise<void> {
     [KEYS.settings]: DEFAULT_SETTINGS,
     [KEYS.hot]: null,
     [KEYS.records]: [],
+    [KEYS.stats]: { total: 0 },
   });
 
   settings = { ...DEFAULT_SETTINGS, ...(data[KEYS.settings] as Partial<Settings>) };
   rebuild(entriesOf(data[KEYS.hot]));
   records = (data[KEYS.records] as HitRecord[]) ?? [];
+  statsTotal = (data[KEYS.stats] as Stats | undefined)?.total ?? 0;
   loaded = true;
   postState();
 }
@@ -144,4 +157,30 @@ const scanner = startScanner({
 void load().then(() => {
   // 列表到达时可能已经有卡片渲染出来了，补扫一遍，别等到下一个定时周期
   scanner.scan();
+  widget?.refresh();
 });
+
+/** 右下角浮窗：只显示「已拦截 / 累计」，点开才看最近 5 条 */
+function mountUi(): void {
+  if (widget || !document.documentElement) return;
+  widget = mountWidget({
+    getSession: () => sessionHits,
+    getTotal: () => statsTotal,
+    getPool: () => fresh.length + stale.length,
+    getRecords: () => records,
+    onAllow: (record) => {
+      const next: Settings = {
+        ...settings,
+        whitelist: [...settings.whitelist, record.biliTitle],
+      };
+      settings = next;
+      records = records.filter((r) => r.biliTitle !== record.biliTitle);
+      void chrome.storage.local.set({ [KEYS.settings]: next, [KEYS.records]: records });
+      postState();
+      widget?.refresh();
+    },
+  });
+}
+
+if (document.documentElement) mountUi();
+else document.addEventListener('DOMContentLoaded', mountUi, { once: true });
