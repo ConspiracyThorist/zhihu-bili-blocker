@@ -1,0 +1,280 @@
+:root {
+  --bg: #16181d;
+  --card: #1e2127;
+  --line: #2b2f37;
+  --text: #e8eaed;
+  --muted: #8b929e;
+  --accent: #fb7299;
+  --ok: #4ade80;
+  --err: #f87171;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  margin: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 560px;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.switch input {
+  display: none;
+}
+
+.track {
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  padding: 2px;
+  border-radius: 999px;
+  background: #33383f;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #9aa1ad;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.switch input:checked + .track {
+  background: rgba(251, 114, 153, 0.35);
+}
+
+.switch input:checked + .track .thumb {
+  background: var(--accent);
+  transform: translateX(18px);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.card.grow {
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.row + .row {
+  margin-top: 6px;
+}
+
+.row.gap {
+  margin-top: 10px;
+}
+
+.label {
+  color: var(--muted);
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  margin-top: 6px;
+  color: var(--err);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.btn {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #1a1014;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:hover {
+  filter: brightness(1.06);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #14161a;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.range {
+  width: 100%;
+  margin: 8px 0 2px;
+  accent-color: var(--accent);
+}
+
+.range-legend {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.records {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.records li {
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.records li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.rec-title {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.rec-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.rec-zhihu {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.allow {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.allow:hover {
+  color: var(--ok);
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  margin: 24px 0;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.foot .btn {
+  flex: 0 0 auto;
+}
+
+.version {
+  color: var(--muted);
+  font-size: 11px;
+}
