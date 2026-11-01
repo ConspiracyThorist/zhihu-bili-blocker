@@ -309,6 +309,25 @@ async function main() {
     check(dom.cards?.[1] === false, 'DOM 兜底：无关卡片保持可见');
     check(dom.cell === true, 'DOM 兜底：标记打在最外层网格单元（防留白）');
 
+    const widget = JSON.parse(
+      (await evaluate(
+        pageCdp,
+        `JSON.stringify((function () {
+          const host = document.getElementById('zbb-widget');
+          if (!host || !host.shadowRoot) return { ok: false };
+          const pill = host.shadowRoot.querySelector('.pill');
+          return { ok: true, text: (pill && pill.textContent) || '' };
+        })())`,
+      )) || '{}',
+    );
+    check(widget.ok === true, '浮窗：已挂载到页面');
+    check(
+      String(widget.text ?? '').includes('已拦截') && String(widget.text ?? '').includes('累计'),
+      '浮窗：显示「已拦截 / 累计」两个数',
+      widget.text,
+    );
+    check(/已拦截\s*2/.test(String(widget.text ?? '')), '浮窗：本次拦截数已计入', widget.text);
+
     await sleep(700);
     const records = JSON.parse(
       (await evaluate(
