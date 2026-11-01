@@ -28,8 +28,15 @@
 ### 油猴脚本
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/)
-2. 打开 [zhihu-bili-blocker.user.js](https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/latest)，Tampermonkey 会自动提示安装
+2. 点下面这个链接，Tampermonkey 会自动弹安装框：
+
+   ```
+   https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/zhihu-bili-blocker.user.js
+   ```
+
 3. 刷新 B 站首页，右下角出现浮窗
+
+脚本只作为仓库里的文件维护，不走 Release。想自己看源码或改，直接打开 [zhihu-bili-blocker.user.js](zhihu-bili-blocker.user.js)。
 
 两个都装也不冲突，隐藏是幂等的。
 
