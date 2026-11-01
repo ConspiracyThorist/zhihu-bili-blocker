@@ -17,21 +17,22 @@ import {
   type HitRecord,
   type HotPool,
   type Settings,
+  type Stats,
 } from '../core/types';
+import { mountWidget } from '../core/widget';
 
 /**
  * 油猴壳。与扩展壳的差别只在外围：
  * - 取数走 GM_xmlhttpRequest（能自定义 UA，且跨域）
  * - 存储走 GM_getValue / GM_setValue
  * - hook 挂到 unsafeWindow 上，才拿得到页面自己的 fetch
- * 匹配、剪枝、DOM 兜底全部复用 core，保证两个版本行为一致。
+ * 匹配、剪枝、DOM 兜底、浮窗全部复用 core，保证两个版本行为一致。
  */
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const HOT_MAX_AGE = 30 * 60 * 1000;
 const SEED_MAX_AGE = 20 * 60 * 60 * 1000;
-const HOST_ID = 'zbb-root';
 
 const win = (typeof unsafeWindow !== 'undefined' && unsafeWindow ? unsafeWindow : window) as Window;
 
@@ -59,7 +60,11 @@ const state = {
   stale: [] as HotEntry[],
   pool: readJson<HotPool | null>(KEYS.hot, null),
   records: readJson<HitRecord[]>(KEYS.records, []),
+  stats: readJson<Stats>(KEYS.stats, { total: 0 }),
 };
+
+let sessionHits = 0;
+let widget: ReturnType<typeof mountWidget> | null = null;
 
 /** 兼容 v1（titles）与 v2（entries）两种存储结构 */
 function poolEntries(): PoolEntry[] {
@@ -83,8 +88,6 @@ function allEntries(): HotEntry[] {
   return [...state.fresh, ...state.stale];
 }
 
-rebuild();
-
 function saveSettings(): void {
   writeJson(KEYS.settings, state.settings);
 }
@@ -97,10 +100,15 @@ function addRecord(record: HitRecord): void {
   const dup = state.records.some(
     (r) => r.biliTitle === record.biliTitle && r.zhihuTitle === record.zhihuTitle,
   );
-  if (!dup) state.records.unshift(record);
-  state.records = state.records.slice(0, RECORD_LIMIT);
-  writeJson(KEYS.records, state.records);
-  renderPanel();
+  if (!dup) {
+    state.records.unshift(record);
+    state.records = state.records.slice(0, RECORD_LIMIT);
+    sessionHits += 1;
+    state.stats = { total: state.stats.total + 1 };
+    writeJson(KEYS.records, state.records);
+    writeJson(KEYS.stats, state.stats);
+  }
+  widget?.refresh();
 }
 
 function gmFetch(url: string): Promise<string> {
@@ -170,7 +178,7 @@ async function refreshHot(force = false): Promise<void> {
         };
         savePool();
         rebuild();
-        renderPanel();
+        widget?.refresh();
         return;
       }
       errors.push(`${source.name}: 只拿到 ${titles.length} 条`);
@@ -184,7 +192,7 @@ async function refreshHot(force = false): Promise<void> {
     error: errors.join(' | '),
   };
   savePool();
-  renderPanel();
+  widget?.refresh();
 }
 
 /** 远端种子：整批替换 remote 条目 */
@@ -211,7 +219,7 @@ async function syncSeed(force = false): Promise<void> {
       };
       savePool();
       rebuild();
-      renderPanel();
+      widget?.refresh();
       return;
     } catch (err) {
       errors.push(`${url}: ${(err as Error).message}`);
@@ -223,7 +231,7 @@ async function syncSeed(force = false): Promise<void> {
     remote: { at: 0, count: 0, error: errors.join(' | ') },
   };
   savePool();
-  renderPanel();
+  widget?.refresh();
 }
 
 // ---- 拦截层（主路径）----
@@ -259,136 +267,16 @@ startScanner({
   },
 });
 
-// ---- 面板 ----
-const TEMPLATE = `
-<style>
-  :host { all: initial; }
-  .fab {
-    position: fixed; right: 18px; bottom: 84px; z-index: 2147483646;
-    width: 40px; height: 40px; border: 0; border-radius: 12px;
-    background: linear-gradient(145deg, #fb7299, #e8618c); color: #fff;
-    font: 600 15px/1 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
-    cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.35);
-    transition: transform .15s;
-  }
-  .fab:hover { transform: translateY(-2px); }
-  .panel {
-    position: fixed; right: 18px; bottom: 132px; z-index: 2147483647;
-    width: 320px; max-height: 60vh; overflow: auto;
-    background: #16181d; color: #e8eaed; border: 1px solid #2b2f37; border-radius: 12px;
-    padding: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.5);
-    font: 12px/1.55 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
-  }
-  .panel[hidden] { display: none; }
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  header b { font-size: 13px; }
-  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
-  .meta { color: #8b929e; }
-  button.act {
-    flex: 1; padding: 6px 8px; border: 0; border-radius: 8px;
-    background: rgba(251,114,153,.16); color: #fb7299; font: inherit; cursor: pointer;
-  }
-  button.act:disabled { opacity: .5; cursor: default; }
-  input[type=range] { width: 120px; accent-color: #fb7299; }
-  input[type=checkbox] { accent-color: #fb7299; }
-  .list { margin-top: 8px; border-top: 1px solid #2b2f37; padding-top: 8px; }
-  .item { padding: 5px 0; border-bottom: 1px solid #23272e; }
-  .item:last-child { border-bottom: 0; }
-  .item .t { word-break: break-all; }
-  .item .m { display: flex; gap: 6px; color: #8b929e; font-size: 11px; }
-  .item .m .z { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .item .m .s { color: #fb7299; }
-  .item .m .a { border: 0; background: none; color: #8b929e; font: inherit; font-size: 11px; cursor: pointer; }
-  .item .m .a:hover { color: #4ade80; }
-  .hint { color: #8b929e; font-size: 11px; }
-  .empty { color: #8b929e; text-align: center; padding: 14px 0; }
-  footer { color: #8b929e; font-size: 11px; margin-top: 8px; }
-</style>
-<button class="fab" title="知乎热榜屏蔽（点击展开）">知</button>
-<section class="panel" hidden>
-  <header>
-    <b>知乎热榜 → B 站屏蔽</b>
-    <label title="总开关"><input type="checkbox" id="en" /></label>
-  </header>
-  <div class="meta" id="meta">—</div>
-  <div class="row">
-    <button class="act" id="refresh">刷新热榜</button>
-    <span class="hint" id="hint"></span>
-  </div>
-  <div class="row">
-    <span>相似度阈值</span>
-    <span><input type="range" id="th" min="0.6" max="0.92" step="0.01" /> <b id="thv">0.72</b></span>
-  </div>
-  <div class="list" id="list"></div>
-  <footer id="foot">最近拦截 0 条</footer>
-</section>`;
-
-let shadow: ShadowRoot | null = null;
-
-function fmtTime(ts: number): string {
-  if (!ts) return '从未成功';
-  const date = new Date(ts);
-  const now = new Date();
-  const hm = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-  return date.toDateString() === now.toDateString()
-    ? `今天 ${hm}`
-    : `${date.getMonth() + 1}-${date.getDate()} ${hm}`;
-}
-
-function renderPanel(): void {
-  if (!shadow) return;
-  const meta = shadow.getElementById('meta') as HTMLElement | null;
-  const foot = shadow.getElementById('foot');
-  const list = shadow.getElementById('list') as HTMLElement | null;
-  const en = shadow.getElementById('en') as HTMLInputElement | null;
-  const th = shadow.getElementById('th') as HTMLInputElement | null;
-  const thv = shadow.getElementById('thv');
-  if (!meta || !list || !foot || !en || !th || !thv) return;
-
-  const pool = state.pool;
-  const entries = poolEntries();
-  meta.textContent = pool?.updatedAt
-    ? `题库 ${entries.length} 条 · ${fmtTime(pool.updatedAt)}${pool.error ? ' · 上次失败' : ''}`
-    : '题库未同步';
-  meta.title = [pool?.error, pool?.remote?.error].filter(Boolean).join(' | ');
-  en.checked = state.settings.enabled;
-  th.value = String(state.settings.threshold);
-  thv.textContent = state.settings.threshold.toFixed(2);
-  foot.textContent = `最近拦截 ${state.records.length} 条 · 油猴版 v1.0.0`;
-
-  list.textContent = '';
-  if (state.records.length === 0) {
-    const p = document.createElement('div');
-    p.className = 'empty';
-    p.textContent = '还没有拦截记录';
-    list.append(p);
-    return;
-  }
-
-  for (const record of state.records.slice(0, 8)) {
-    const item = document.createElement('div');
-    item.className = 'item';
-
-    const title = document.createElement('div');
-    title.className = 't';
-    title.textContent = record.biliTitle;
-
-    const metaRow = document.createElement('div');
-    metaRow.className = 'm';
-
-    const zhihu = document.createElement('span');
-    zhihu.className = 'z';
-    zhihu.textContent = `← ${record.zhihuTitle}`;
-    zhihu.title = record.zhihuTitle;
-
-    const score = document.createElement('span');
-    score.className = 's';
-    score.textContent = record.score.toFixed(2);
-
-    const allow = document.createElement('button');
-    allow.className = 'a';
-    allow.textContent = '放行';
-    allow.addEventListener('click', () => {
+// ---- 浮窗（与扩展同一套 core/widget）----
+/** 油猴没有弹窗，开关和强度直接放在浮窗的展开面板里 */
+function mountUi(): void {
+  if (widget || !document.documentElement) return;
+  widget = mountWidget({
+    getSession: () => sessionHits,
+    getTotal: () => state.stats.total,
+    getPool: () => poolEntries().length,
+    getRecords: () => state.records,
+    onAllow: (record) => {
       if (!state.settings.whitelist.includes(record.biliTitle)) {
         state.settings = {
           ...state.settings,
@@ -396,90 +284,34 @@ function renderPanel(): void {
         };
         saveSettings();
       }
-      state.records = state.records.filter(
-        (r) => !(r.biliTitle === record.biliTitle && r.zhihuTitle === record.zhihuTitle),
-      );
+      state.records = state.records.filter((r) => r.biliTitle !== record.biliTitle);
       writeJson(KEYS.records, state.records);
-      renderPanel();
-    });
-
-    metaRow.append(zhihu, score, allow);
-    item.append(title, metaRow);
-    list.append(item);
-  }
-}
-
-function bindPanel(): void {
-  if (!shadow) return;
-  const fab = shadow.querySelector('.fab');
-  const panel = shadow.querySelector('.panel') as HTMLElement | null;
-  const en = shadow.getElementById('en') as HTMLInputElement | null;
-  const th = shadow.getElementById('th') as HTMLInputElement | null;
-  const refresh = shadow.getElementById('refresh') as HTMLButtonElement | null;
-  const hint = shadow.getElementById('hint');
-
-  fab?.addEventListener('click', () => {
-    if (!panel) return;
-    panel.hidden = !panel.hidden;
-    if (!panel.hidden) renderPanel();
-  });
-
-  en?.addEventListener('change', () => {
-    state.settings = { ...state.settings, enabled: en.checked };
-    saveSettings();
-    if (!en.checked) {
-      document.querySelectorAll('[data-zbb="1"]').forEach((el) => el.removeAttribute('data-zbb'));
-    }
-  });
-
-  th?.addEventListener('input', () => {
-    if (!shadow) return;
-    const value = shadow.getElementById('thv');
-    if (value) value.textContent = Number(th.value).toFixed(2);
-  });
-  th?.addEventListener('change', () => {
-    state.settings = { ...state.settings, threshold: Number(th.value) };
-    saveSettings();
-  });
-
-  refresh?.addEventListener('click', async () => {
-    refresh.disabled = true;
-    if (hint) hint.textContent = '请求中…';
-    await refreshHot(true);
-    refresh.disabled = false;
-    if (hint) {
-      hint.textContent = state.pool?.error ? '失败，见悬浮提示' : '已更新';
-      window.setTimeout(() => {
-        if (hint) hint.textContent = '';
-      }, 2500);
-    }
+      widget?.refresh();
+    },
+    settings: {
+      getEnabled: () => state.settings.enabled,
+      onToggle: (enabled) => {
+        state.settings = { ...state.settings, enabled };
+        saveSettings();
+      },
+      getThreshold: () => state.settings.threshold,
+      onThreshold: (threshold) => {
+        state.settings = { ...state.settings, threshold };
+        saveSettings();
+      },
+    },
   });
 }
 
-function mountPanel(): void {
-  if (shadow || document.getElementById(HOST_ID)) return;
-  const host = document.createElement('div');
-  host.id = HOST_ID;
-  shadow = host.attachShadow({ mode: 'open' });
-  shadow.innerHTML = TEMPLATE;
-  document.documentElement.append(host);
-  bindPanel();
-  renderPanel();
-}
-
-if (document.documentElement) mountPanel();
-else document.addEventListener('DOMContentLoaded', mountPanel, { once: true });
+rebuild();
+if (document.documentElement) mountUi();
+else document.addEventListener('DOMContentLoaded', mountUi, { once: true });
 
 if (typeof GM_registerMenuCommand === 'function') {
   GM_registerMenuCommand('打开知乎屏蔽面板', () => {
-    mountPanel();
-    const panel = shadow?.querySelector('.panel') as HTMLElement | null;
-    if (panel) {
-      panel.hidden = false;
-      renderPanel();
-    }
+    mountUi();
+    widget?.open();
   });
 }
 
-void refreshHot();
-void syncSeed();
+void refreshHot().then(() => syncSeed());
