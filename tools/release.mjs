@@ -75,13 +75,12 @@ if (!release) {
   console.log('Release 已存在：', release.html_url);
 }
 
-// 上传附件（走 uploads.github.com，若被墙则回退到仓库内文件）
+// 附件只放扩展 zip。油猴脚本不进 Release，它作为仓库根目录的文件存在。
 const assets = await api('GET', `/repos/${OWNER}/${REPO}/releases/${release.id}/assets`);
 const uploaded = new Set((assets.json ?? []).map((a) => a.name));
 
 for (const [local, name, type] of [
   ['dist/zhihu-bili-blocker.zip', 'zhihu-bili-blocker.zip', 'application/zip'],
-  ['dist/zhihu-bili-blocker.user.js', 'zhihu-bili-blocker.user.js', 'text/javascript'],
 ]) {
   if (uploaded.has(name)) {
     console.log(`- ${name} 已存在，跳过`);
