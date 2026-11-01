@@ -83,10 +83,35 @@ export interface HitRecord {
   at: number;
 }
 
+/** 拦截强度预设：主界面只让人选档位，精确阈值收进高级设置 */
+export interface Mode {
+  id: 'conservative' | 'standard' | 'aggressive';
+  name: string;
+  threshold: number;
+  hint: string;
+}
+
+export const MODES: Mode[] = [
+  { id: 'conservative', name: '保守', threshold: 0.8, hint: '只拦照搬' },
+  { id: 'standard', name: '标准', threshold: 0.72, hint: '多数搬运' },
+  { id: 'aggressive', name: '激进', threshold: 0.66, hint: '改写也拦' },
+];
+
+/** 命中它的阈值会被认成哪个档位；不在预设里就是自定义 */
+export function modeOf(threshold: number): Mode | undefined {
+  return MODES.find((m) => Math.abs(m.threshold - threshold) < 0.005);
+}
+
+/** 累计拦截计数（记录只留最近 50 条，总数单独记） */
+export interface Stats {
+  total: number;
+}
+
 export const KEYS = {
   settings: 'zbb:settings',
   hot: 'zbb:hot',
   records: 'zbb:records',
+  stats: 'zbb:stats',
 } as const;
 
 export const RECORD_LIMIT = 50;
