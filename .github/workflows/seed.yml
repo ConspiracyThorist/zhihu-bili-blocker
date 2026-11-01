@@ -1,0 +1,44 @@
+name: refresh seed
+
+on:
+  schedule:
+    # 每天 UTC 01:00（北京时间 09:00）
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 生成题库
+        run: node tools/build-seed.mjs --days 60
+
+      - name: 提交变更
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add seed.txt
+          if git diff --cached --quiet; then
+            echo "没有变化，跳过"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore: refresh seed $(date -u +%Y-%m-%d)"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: 刷新 jsDelivr 缓存
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          # @main 默认缓存 7 天，不刷的话用户一周后才看到新题
+          curl -fsS "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/seed.txt" || true
