@@ -188,11 +188,25 @@ function installRoute(player) {
   };
 }
 
-async function main() {
-  await rm(tmp, { recursive: true, force: true });
-  await mkdir(tmp, { recursive: true });
+/** 上一轮的 Chrome 可能还没退干净，直接删会 EBUSY；重试几次再放弃 */
+async function removeWithRetry(dir, attempts = 5) {
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      await rm(dir, { recursive: true, force: true });
+      return;
+    } catch {
+      await sleep(500);
+    }
+  }
+  console.warn(`  ! 清理失败（不影响结果）：${dir}`);
+}
 
-  const profile = join(tmp, 'profile');
+async function main() {
+  // 用带时间戳的子目录，避免和上一轮残留的 profile 撞车
+  const runDir = join(tmp, `run-${Date.now()}`);
+  await mkdir(runDir, { recursive: true });
+
+  const profile = join(runDir, 'profile');
   let chrome = launchChrome('--headless=new', profile);
 
   let failures = 0;
@@ -482,12 +496,13 @@ async function main() {
   }
 
   console.log(failures === 0 ? '\n✓ 端到端全部通过' : `\n✗ 端到端失败 ${failures} 项`);
-  await rm(tmp, { recursive: true, force: true }).catch(() => {});
+  chrome.kill();
+  await sleep(800);
+  await removeWithRetry(runDir);
   process.exit(failures === 0 ? 0 : 1);
 }
 
 main().catch(async (err) => {
   console.error('e2e 异常：', err.message);
-  await rm(tmp, { recursive: true, force: true }).catch(() => {});
   process.exit(1);
 });
