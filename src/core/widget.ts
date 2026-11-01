@@ -26,24 +26,25 @@ export interface WidgetOptions {
 const STYLE = `
 :host { all: initial; }
 .pill {
-  position: fixed; right: 18px; bottom: 18px; z-index: 2147483640;
+  position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 2147483640;
   display: flex; align-items: center; gap: 7px;
   padding: 7px 12px; border-radius: 999px;
   background: rgba(20, 22, 27, 0.72);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #d9dce2; font: 12px/1 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
-  cursor: pointer; opacity: 0.62; transition: opacity .15s, transform .15s, border-color .15s;
-  user-select: none;
+  cursor: grab; opacity: 0.62; transition: opacity .15s, border-color .15s;
+  user-select: none; touch-action: none;
 }
-.pill:hover { opacity: 1; transform: translateY(-1px); border-color: rgba(255,255,255,.22); }
+.pill:hover { opacity: 1; border-color: rgba(255,255,255,.22); }
 .pill.open { opacity: 1; }
+.pill.dragging { transition: none; cursor: grabbing; opacity: 1; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: #fb7299; flex: none; }
 .pill b { font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
 .sep { color: #6b7280; }
 
 .panel {
-  position: fixed; right: 18px; bottom: 58px; z-index: 2147483641;
+  position: fixed; left: 0; top: 0; z-index: 2147483641;
   width: 300px; max-height: 46vh; overflow: auto;
   padding: 10px 12px; border-radius: 12px;
   background: rgba(20, 22, 27, 0.96);
@@ -91,6 +92,49 @@ function createWidget(opts: WidgetOptions): {
   const pill = root.querySelector('.pill') as HTMLButtonElement;
   const text = root.querySelector('.text') as HTMLElement;
   const panel = root.querySelector('.panel') as HTMLElement;
+
+  // ---- 位置：默认右中，可拖动，位置记在 localStorage（两个壳都能用） ----
+  const POS_KEY = 'zbb:widget-pos';
+
+  const clamp = (v: number, lo: number, hi: number): number => Math.min(Math.max(v, lo), Math.max(lo, hi));
+
+  const applyPos = (x: number, y: number): void => {
+    pill.style.left = `${x}px`;
+    pill.style.top = `${y}px`;
+    pill.style.right = 'auto';
+    pill.style.transform = 'none';
+  };
+
+  const defaultPos = (): { x: number; y: number } => {
+    const r = pill.getBoundingClientRect();
+    return {
+      x: window.innerWidth - r.width - 18,
+      // 右中：稍微偏上一点，避开底部的播放器控制条和评论框
+      y: Math.round(window.innerHeight * 0.42 - r.height / 2),
+    };
+  };
+
+  const placePanel = (): void => {
+    const r = pill.getBoundingClientRect();
+    const pw = panel.offsetWidth || 300;
+    const ph = panel.offsetHeight || 200;
+    const left = clamp(r.right - pw, 8, window.innerWidth - pw - 8);
+    let top = r.top - ph - 8;
+    if (top < 8) top = clamp(r.bottom + 8, 8, window.innerHeight - ph - 8);
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+  };
+
+  const savePos = (): void => {
+    try {
+      localStorage.setItem(
+        POS_KEY,
+        JSON.stringify({ x: parseFloat(pill.style.left), y: parseFloat(pill.style.top) }),
+      );
+    } catch {
+      /* 隐私模式下 localStorage 可能不可写 */
+    }
+  };
 
   const close = () => {
     panel.hidden = true;
@@ -205,12 +249,78 @@ function createWidget(opts: WidgetOptions): {
     if (!panel.hidden) renderPanel();
   };
 
+  // ---- 拖拽 ----
+  let dragging = false;
+  let moved = false;
+  let startX = 0;
+  let startY = 0;
+  let originX = 0;
+  let originY = 0;
+
+  pill.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    const rect = pill.getBoundingClientRect();
+    dragging = true;
+    moved = false;
+    startX = event.clientX;
+    startY = event.clientY;
+    originX = rect.left;
+    originY = rect.top;
+    pill.classList.add('dragging');
+    try {
+      pill.setPointerCapture(event.pointerId);
+    } catch {
+      /* 合成事件里可能没有真实 pointerId */
+    }
+  });
+
+  pill.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    if (!moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+    moved = true;
+
+    const w = pill.offsetWidth;
+    const h = pill.offsetHeight;
+    applyPos(
+      clamp(originX + dx, 4, window.innerWidth - w - 4),
+      clamp(originY + dy, 4, window.innerHeight - h - 4),
+    );
+    if (!panel.hidden) placePanel();
+  });
+
+  const endDrag = (): void => {
+    if (!dragging) return;
+    dragging = false;
+    pill.classList.remove('dragging');
+    if (moved) savePos();
+  };
+  pill.addEventListener('pointerup', endDrag);
+  pill.addEventListener('pointercancel', endDrag);
+
+  window.addEventListener('resize', () => {
+    if (!pill.style.left) return;
+    const w = pill.offsetWidth;
+    const h = pill.offsetHeight;
+    applyPos(
+      clamp(parseFloat(pill.style.left), 4, window.innerWidth - w - 4),
+      clamp(parseFloat(pill.style.top), 4, window.innerHeight - h - 4),
+    );
+    if (!panel.hidden) placePanel();
+  });
+
   pill.addEventListener('click', (event) => {
     event.stopPropagation();
+    if (moved) {
+      moved = false;
+      return;
+    }
     if (panel.hidden) {
       renderPanel();
       panel.hidden = false;
       pill.classList.add('open');
+      placePanel();
     } else {
       close();
     }
@@ -224,6 +334,23 @@ function createWidget(opts: WidgetOptions): {
   document.addEventListener('click', onDocClick, true);
 
   document.documentElement.append(host);
+
+  // 恢复上次拖到的位置；没有记录就落在右中
+  try {
+    const saved = localStorage.getItem(POS_KEY);
+    if (saved) {
+      const pos = JSON.parse(saved) as { x: number; y: number };
+      if (Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+        applyPos(pos.x, pos.y);
+      }
+    }
+  } catch {
+    /* 读不到就用默认位置 */
+  }
+  if (!pill.style.left) {
+    const base = defaultPos();
+    applyPos(base.x, base.y);
+  }
   refresh();
 
   return {
@@ -232,6 +359,7 @@ function createWidget(opts: WidgetOptions): {
       renderPanel();
       panel.hidden = false;
       pill.classList.add('open');
+      placePanel();
     },
     destroy: () => {
       document.removeEventListener('click', onDocClick, true);
