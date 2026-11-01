@@ -60,6 +60,7 @@ function bundle(entry, outfile, extra = []) {
       '--format=iife',
       '--target=chrome111',
       '--legal-comments=none',
+      '--charset=utf8',
       '--log-level=warning',
       `--outfile=${outfile}`,
       ...extra,
