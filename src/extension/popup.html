@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>知乎热榜屏蔽</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="head">
+      <div class="title">
+        <span class="dot"></span>
+        知乎热榜 → B 站屏蔽
+      </div>
+      <label class="switch" title="总开关">
+        <input id="toggle" type="checkbox" />
+        <span class="track"><span class="thumb"></span></span>
+      </label>
+    </header>
+
+    <section class="card">
+      <div class="row">
+        <span class="label">题库</span>
+        <span id="hotInfo" class="value">读取中…</span>
+      </div>
+      <div class="row">
+        <span class="label">来源</span>
+        <span id="hotSource" class="value muted">—</span>
+      </div>
+      <div id="hotError" class="error hidden"></div>
+      <div class="row gap">
+        <button id="refresh" class="btn">刷新热榜</button>
+        <span id="refreshHint" class="hint"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <span class="label">远端题库源</span>
+        <span id="seedMeta" class="value muted">未启用</span>
+      </div>
+      <input id="seedUrl" class="input" type="text" placeholder="https://…/seed.txt" spellcheck="false" />
+      <div class="row gap">
+        <button id="syncSeed" class="btn ghost">同步题库</button>
+        <span id="seedHint" class="hint"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <span class="label">相似度阈值</span>
+        <span id="thresholdValue" class="value">0.72</span>
+      </div>
+      <input id="threshold" class="range" type="range" min="0.6" max="0.92" step="0.01" />
+      <div class="range-legend">
+        <span>更严 · 少误伤</span>
+        <span>更宽 · 多拦截</span>
+      </div>
+    </section>
+
+    <section class="card grow">
+      <div class="row">
+        <span class="label">最近屏蔽</span>
+        <span id="recordCount" class="value muted">0</span>
+      </div>
+      <ul id="records" class="records"></ul>
+      <p id="empty" class="empty">还没有拦截记录。刷一下 B 站首页看看。</p>
+    </section>
+
+    <footer class="foot">
+      <button id="clear" class="btn ghost">清空记录</button>
+      <span class="version">v1.0.0</span>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
