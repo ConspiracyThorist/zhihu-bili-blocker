@@ -1,5 +1,12 @@
-# 体检工具的中间产物，不进仓库
+# 依赖与构建产物
+node_modules/
+dist/
+.test-tmp/
+.dsh-office-*
+
+# 体检工具的中间产物
 seed.meta.json
 
-node_modules/
+# 系统文件
 .DS_Store
+Thumbs.db
