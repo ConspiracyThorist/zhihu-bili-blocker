@@ -158,8 +158,8 @@ node tools/run-audit.mjs --seed seed.txt   # 题库体检：拿每条标题去 B
 `seed.txt` 传到仓库后，把地址填进 popup 的「远端题库源」。**默认已经配好两个源**（按序尝试）：
 
 ```
-1. https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker-seed/main/seed.txt
-2. https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker-seed@main/seed.txt
+1. https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/seed.txt
+2. https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/seed.txt
 ```
 
 国内网络实测：
