@@ -4,7 +4,14 @@
  * 设计取舍：拦截记录不该占据视觉重心，但用户又需要「刚才拦了没」这个反馈。
  * 所以默认是一枚低存在感的胶囊，hover 才变实；展开后也只给 5 条。
  */
-import type { HitRecord } from './types';
+import { MODES, modeOf, type HitRecord } from './types';
+
+export interface WidgetSettings {
+  getEnabled: () => boolean;
+  onToggle: (enabled: boolean) => void;
+  getThreshold: () => number;
+  onThreshold: (threshold: number) => void;
+}
 
 export interface WidgetOptions {
   getSession: () => number;
@@ -12,6 +19,8 @@ export interface WidgetOptions {
   getPool: () => number;
   getRecords: () => HitRecord[];
   onAllow: (record: HitRecord) => void;
+  /** 油猴版没有弹窗，设置直接放在展开面板里；扩展不传 */
+  settings?: WidgetSettings;
 }
 
 const STYLE = `
@@ -54,9 +63,24 @@ const STYLE = `
 .a { border: 0; background: none; color: #8b929e; font: inherit; font-size: 11px; cursor: pointer; padding: 0 2px; }
 .a:hover { color: #4ade80; }
 .empty { color: #8b929e; text-align: center; padding: 12px 0; }
+.settings { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.07); }
+.srow { display: flex; align-items: center; justify-content: space-between; color: #8b929e; }
+.cb { accent-color: #fb7299; cursor: pointer; }
+.modes { display: flex; gap: 6px; margin-top: 8px; }
+.chip {
+  flex: 1; padding: 5px 0; border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.1); background: #16181d;
+  color: #b9bfc9; font: inherit; font-size: 11px;
+}
+.chip:hover { border-color: rgba(255,255,255,.24); }
+.chip.active { border-color: #fb7299; color: #fb7299; background: rgba(251,114,153,.1); }
 `;
 
-function createWidget(opts: WidgetOptions): { refresh: () => void; destroy: () => void } {
+function createWidget(opts: WidgetOptions): {
+  refresh: () => void;
+  open: () => void;
+  destroy: () => void;
+} {
   const host = document.createElement('div');
   host.id = 'zbb-widget';
   const root = host.attachShadow({ mode: 'open' });
@@ -91,7 +115,6 @@ function createWidget(opts: WidgetOptions): { refresh: () => void; destroy: () =
       empty.className = 'empty';
       empty.textContent = '还没有拦截记录';
       panel.append(empty);
-      return;
     }
 
     for (const record of records) {
@@ -126,6 +149,49 @@ function createWidget(opts: WidgetOptions): { refresh: () => void; destroy: () =
       item.append(title, meta);
       panel.append(item);
     }
+
+    appendSettings();
+  };
+
+  /** 油猴版没有弹窗，开关和强度直接放进展开面板 */
+  const appendSettings = () => {
+    const cfg = opts.settings;
+    if (!cfg) return;
+
+    const box = document.createElement('div');
+    box.className = 'settings';
+
+    const row = document.createElement('div');
+    row.className = 'srow';
+    const label = document.createElement('span');
+    label.textContent = '总开关';
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.className = 'cb';
+    toggle.checked = cfg.getEnabled();
+    toggle.addEventListener('change', () => {
+      cfg.onToggle(toggle.checked);
+      refresh();
+    });
+    row.append(label, toggle);
+
+    const modes = document.createElement('div');
+    modes.className = 'modes';
+    const current = modeOf(cfg.getThreshold());
+    for (const mode of MODES) {
+      const chip = document.createElement('button');
+      chip.className = `chip${current?.id === mode.id ? ' active' : ''}`;
+      chip.textContent = mode.name;
+      chip.title = `阈值 ${mode.threshold}`;
+      chip.addEventListener('click', () => {
+        cfg.onThreshold(mode.threshold);
+        renderPanel();
+      });
+      modes.append(chip);
+    }
+
+    box.append(row, modes);
+    panel.append(box);
   };
 
   const refresh = () => {
@@ -162,6 +228,11 @@ function createWidget(opts: WidgetOptions): { refresh: () => void; destroy: () =
 
   return {
     refresh,
+    open: () => {
+      renderPanel();
+      panel.hidden = false;
+      pill.classList.add('open');
+    },
     destroy: () => {
       document.removeEventListener('click', onDocClick, true);
       host.remove();
@@ -173,10 +244,14 @@ function createWidget(opts: WidgetOptions): { refresh: () => void; destroy: () =
  * 挂载浮窗。任何环境不支持（比如没有 Shadow DOM）就静默降级成空实现——
  * 浮窗只是反馈，不能因为它挂了就影响屏蔽本身。
  */
-export function mountWidget(opts: WidgetOptions): { refresh: () => void; destroy: () => void } {
+export function mountWidget(opts: WidgetOptions): {
+  refresh: () => void;
+  open: () => void;
+  destroy: () => void;
+} {
   try {
     return createWidget(opts);
   } catch {
-    return { refresh: () => undefined, destroy: () => undefined };
+    return { refresh: () => undefined, open: () => undefined, destroy: () => undefined };
   }
 }
