@@ -11,7 +11,7 @@
  *
  * 用法：node tools/build-seed.mjs [--days 60] [--out seed.txt]
  */
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,6 +27,7 @@ function arg(name, fallback) {
 
 const days = Number(arg('days', 60));
 const outPath = arg('out', join(root, 'seed.txt'));
+const maxEntries = Number(arg('max', 1000));
 
 async function getJson(url) {
   const res = await fetch(url, {
@@ -92,24 +93,48 @@ async function main() {
   }
   console.log(`日报：+${dailyCount} 条（回翻 ${days} 天）`);
 
+  // 3. 合并已有文件：CI 环境里 news-at.zhihu.com 可能拉不到（境外访问不了），
+  //    不合并的话会把仓库里几百条历史一次性覆盖成 30 条。
+  let kept = 0;
+  try {
+    const previous = await readFile(outPath, 'utf8');
+    for (const line of previous.split(/\r?\n/)) {
+      const title = line.trim();
+      if (!title || title.startsWith('#')) continue;
+      const before = entries.length;
+      add(title, 'kept', '');
+      if (entries.length > before) kept += 1;
+    }
+  } catch {
+    /* 首次生成，没有历史文件 */
+  }
+  console.log(`保留历史：${kept} 条`);
+
+  if (entries.length < 5) {
+    console.error('有效条目太少，放弃写入（避免覆盖已有题库）');
+    process.exit(1);
+  }
+
+  const trimmed = entries.slice(0, maxEntries);
+
   const header = [
     '# zhihu-bili-blocker seed',
     `# generated: ${new Date().toISOString().slice(0, 10)}`,
-    `# sources: hot(${entries.filter((e) => e.source === 'hot').length}) + daily(${dailyCount})`,
-    `# total: ${entries.length}`,
+    `# sources: hot(${entries.filter((e) => e.source === 'hot').length}) + daily(${dailyCount}) + kept(${kept})`,
+    `# total: ${trimmed.length}`,
     '# 一行一条，客户端按行读取并本地累积',
     '',
   ].join('\n');
 
-  const body = entries.map((e) => e.title).join('\n');
+  const body = trimmed.map((e) => e.title).join('\n');
   await writeFile(outPath, `${header}\n${body}\n`, 'utf8');
-  console.log(`\n写入 ${outPath}（${entries.length} 条）`);
+  console.log(`\n写入 ${outPath}（${trimmed.length} 条）`);
 
   // 附带一份带来源的元数据，供体检工具分组统计（分发包里不需要）
   const metaPath = outPath.replace(/\.txt$/, '.meta.json');
   await writeFile(
     metaPath,
-    JSON.stringify({ generatedAt: new Date().toISOString(), entries }, null, 2),
+    JSON.stringify({ generatedAt: new Date().toISOString(), entries: trimmed }, null, 2),
     'utf8',
   );
   console.log(`写入 ${metaPath}（含来源标注）`);
