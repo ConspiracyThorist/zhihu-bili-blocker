@@ -23,7 +23,7 @@
 需要 Chrome 111 及以上。
 
 > 下载不动的话，把链接前面加上 `https://gh-proxy.com/` 走镜像，例如
-> `https://gh-proxy.com/https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/download/v1.1.0/zhihu-bili-blocker.zip`。
+> `https://gh-proxy.com/https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/download/v1.0.0/zhihu-bili-blocker.zip`。
 
 ### 油猴脚本
 
