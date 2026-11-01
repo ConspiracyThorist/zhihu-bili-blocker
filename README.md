@@ -14,7 +14,7 @@
 
 ### Chrome 扩展（推荐）
 
-1. 下载 `zhihu-bili-blocker.zip` 并解压
+1. 到 [Releases](https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/latest) 下载 `zhihu-bili-blocker.zip` 并解压
 2. 地址栏打开 `chrome://extensions`
 3. 右上角打开「开发者模式」
 4. 点「加载已解压的扩展程序」，选中解压出来的文件夹
@@ -22,11 +22,14 @@
 
 需要 Chrome 111 及以上。
 
+> 下载不动的话，把链接前面加上 `https://gh-proxy.com/` 走镜像，例如
+> `https://gh-proxy.com/https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/download/v1.1.0/zhihu-bili-blocker.zip`。
+
 ### 油猴脚本
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/)
-2. 打开 `zhihu-bili-blocker.user.js`，Tampermonkey 会自动提示安装
-3. 刷新 B 站首页，右下角出现「知」按钮
+2. 打开 [zhihu-bili-blocker.user.js](https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases/latest)，Tampermonkey 会自动提示安装
+3. 刷新 B 站首页，右下角出现浮窗
 
 两个都装也不冲突，隐藏是幂等的。
 
