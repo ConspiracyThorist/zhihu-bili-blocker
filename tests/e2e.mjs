@@ -328,6 +328,37 @@ async function main() {
     );
     check(/已拦截\s*2/.test(String(widget.text ?? '')), '浮窗：本次拦截数已计入', widget.text);
 
+    const drag = JSON.parse(
+      (await evaluate(
+        pageCdp,
+        `JSON.stringify((function () {
+          const host = document.getElementById('zbb-widget');
+          const pill = host.shadowRoot.querySelector('.pill');
+          const before = pill.getBoundingClientRect();
+          const base = { bubbles: true, composed: true, pointerId: 1, button: 0, isPrimary: true };
+          pill.dispatchEvent(new PointerEvent('pointerdown', { ...base, clientX: before.left + 8, clientY: before.top + 8 }));
+          pill.dispatchEvent(new PointerEvent('pointermove', { ...base, clientX: 140, clientY: 220 }));
+          pill.dispatchEvent(new PointerEvent('pointerup', { ...base, clientX: 140, clientY: 220 }));
+          const after = pill.getBoundingClientRect();
+          return {
+            startTop: Math.round(before.top),
+            viewportH: window.innerHeight,
+            moved: Math.abs(after.left - before.left) > 30 || Math.abs(after.top - before.top) > 30,
+            left: Math.round(after.left),
+            top: Math.round(after.top),
+            saved: !!localStorage.getItem('zbb:widget-pos')
+          };
+        })())`,
+      )) || '{}',
+    );
+    check(
+      drag.startTop < drag.viewportH * 0.7,
+      '浮窗：初始位置在右侧中部而非底部',
+      `top=${drag.startTop}/${drag.viewportH}`,
+    );
+    check(drag.moved === true, '浮窗：可拖动', `left=${drag.left} top=${drag.top}`);
+    check(drag.saved === true, '浮窗：拖动后位置已记住');
+
     await sleep(700);
     const records = JSON.parse(
       (await evaluate(
