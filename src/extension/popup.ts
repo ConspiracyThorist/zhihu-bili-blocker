@@ -1,9 +1,12 @@
 import {
   DEFAULT_SETTINGS,
   KEYS,
+  MODES,
+  modeOf,
   type HitRecord,
   type HotPool,
   type Settings,
+  type Stats,
 } from '../core/types';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string): T =>
@@ -12,6 +15,47 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string): T =>
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let pool: HotPool | null = null;
 let records: HitRecord[] = [];
+let stats: Stats = { total: 0 };
+
+/** 三段式强度选择：主界面只暴露档位，精确阈值收进高级设置 */
+function renderModes(): void {
+  const host = $('#modes');
+  const current = modeOf(settings.threshold);
+  host.textContent = '';
+
+  for (const mode of MODES) {
+    const btn = document.createElement('button');
+    btn.className = `mode${current?.id === mode.id ? ' active' : ''}`;
+    btn.dataset.threshold = String(mode.threshold);
+    btn.title = `${mode.name}：阈值 ${mode.threshold}，${mode.hint}`;
+    btn.append(mode.name);
+
+    const hint = document.createElement('span');
+    hint.textContent = mode.hint;
+    btn.append(hint);
+
+    btn.addEventListener('click', () => {
+      settings = { ...settings, threshold: mode.threshold };
+      void saveSettings();
+      renderModes();
+      renderThreshold();
+    });
+    host.append(btn);
+  }
+
+  $('#modeName').textContent = current ? current.name : '自定义';
+}
+
+function renderThreshold(): void {
+  const slider = $('#threshold') as HTMLInputElement;
+  slider.value = String(settings.threshold);
+  $('#thresholdValue').textContent = settings.threshold.toFixed(2);
+}
+
+function renderStats(): void {
+  $('#totalHits').textContent = String(stats.total);
+  $('#poolCount').textContent = String(pool?.entries.length ?? 0);
+}
 
 function pad(n: number): string {
   return String(n).padStart(2, '0');
@@ -60,13 +104,14 @@ function renderPool(): void {
   } else {
     error.classList.add('hidden');
   }
+
+  renderStats();
 }
 
 function renderSettings(): void {
   ($('#toggle') as HTMLInputElement).checked = settings.enabled;
-  const slider = $('#threshold') as HTMLInputElement;
-  slider.value = String(settings.threshold);
-  $('#thresholdValue').textContent = settings.threshold.toFixed(2);
+  renderThreshold();
+  renderModes();
   ($('#seedUrl') as HTMLInputElement).value = settings.remoteSeedUrls[0] ?? '';
 }
 
@@ -74,6 +119,7 @@ function renderRecords(): void {
   const list = $('#records');
   const empty = $('#empty');
   $('#recordCount').textContent = String(records.length);
+  $('#sessionHits').textContent = String(records.length);
   list.textContent = '';
   empty.classList.toggle('hidden', records.length > 0);
 
@@ -129,13 +175,16 @@ async function readState(): Promise<void> {
     [KEYS.settings]: DEFAULT_SETTINGS,
     [KEYS.hot]: null,
     [KEYS.records]: [],
+    [KEYS.stats]: { total: 0 },
   });
   settings = { ...DEFAULT_SETTINGS, ...(data[KEYS.settings] as Partial<Settings>) };
   pool = data[KEYS.hot] as HotPool | null;
   records = (data[KEYS.records] as HitRecord[]) ?? [];
+  stats = { total: 0, ...(data[KEYS.stats] as Partial<Stats>) };
   renderSettings();
   renderPool();
   renderRecords();
+  renderStats();
 }
 
 function bind(): void {
@@ -151,6 +200,7 @@ function bind(): void {
   slider.addEventListener('change', () => {
     settings = { ...settings, threshold: Number(slider.value) };
     void saveSettings();
+    renderModes();
   });
 
   ($('#seedUrl') as HTMLInputElement).addEventListener('change', (event) => {
