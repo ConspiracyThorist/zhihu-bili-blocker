@@ -90,6 +90,10 @@ async function main() {
   await cp(join(root, 'src/extension/popup.css'), join(extDir, 'popup.css'));
   await cp(join(root, 'assets/icons'), join(extDir, 'icons'), { recursive: true });
 
+  // 油猴脚本不做 Release 附件，直接作为仓库里的文件供人取用，
+  // 所以额外在仓库根目录留一份（dist/ 是构建产物，不入库）
+  await cp(join(dist, 'zhihu-bili-blocker.user.js'), join(root, 'zhihu-bili-blocker.user.js'));
+
   const zip = await createZip(extDir, join(dist, 'zhihu-bili-blocker.zip'));
   const userJs = await stat(join(dist, 'zhihu-bili-blocker.user.js'));
 
