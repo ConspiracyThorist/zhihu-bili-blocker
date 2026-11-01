@@ -6,7 +6,7 @@ B 站首页有一类视频，标题直接就是知乎的问题。「如何看待
 
 摘掉的意思是卡片压根不会出现。不是先冒出来闪一下再消失。
 
-## 装
+## 📦 装
 
 两个版本，挑一个就行。
 
@@ -40,7 +40,7 @@ https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-b
 
 装完刷新首页，右下角会多出一个小胶囊。两个版本装一起也不打架。
 
-## 用
+## 👀 用
 
 胶囊平时就露两个数字：这次打开页面拦了几条，历史上总共拦了多少。
 
@@ -64,7 +64,7 @@ https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-b
 
 阈值这个东西，说白了是「标题差多远还算同一条」。想精确调，展开高级设置拖滑杆就行，不过我建议先用标准档跑几天，觉得不对再动。
 
-## 碰到问题
+## 🧯 碰到问题
 
 **看到搬运却没被拦**
 
@@ -86,7 +86,7 @@ https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-b
 
 等我更新选择器。这类改动集中在一个文件里，改几行的事。
 
-## 隐私
+## 🔒 隐私
 
 不上传任何东西。题库、设置、屏蔽记录全在浏览器本地。
 
@@ -106,6 +106,6 @@ https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-b
 
 接口没覆盖到的首屏卡片，DOM 层再补一刀。
 
-## 开发
+## 🛠 开发
 
 构建、测试、题库生成和体检、发版流程，都在 [DEVELOP.md](DEVELOP.md)。
