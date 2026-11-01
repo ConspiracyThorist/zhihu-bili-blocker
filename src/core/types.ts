@@ -47,8 +47,8 @@ export const DEFAULT_SETTINGS: Settings = {
   // raw.githubusercontent 在国内多数网络访问不了，所以走两个镜像：
   //   gh-proxy 无缓存、能立刻拿到最新；jsDelivr 边缘缓存 12h，胜在稳定
   remoteSeedUrls: [
-    'https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker-seed/main/seed.txt',
-    'https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker-seed@main/seed.txt',
+    'https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/seed.txt',
+    'https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/seed.txt',
   ],
   poolDays: 30,
   poolMax: 800,
