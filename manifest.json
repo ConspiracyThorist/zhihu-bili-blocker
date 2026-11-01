@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "知乎热榜屏蔽B站推荐",
+  "version": "1.0.0",
+  "description": "同步知乎热榜，标题模糊匹配后在渲染前屏蔽 B 站首页推荐里的搬运视频",
+  "minimum_chrome_version": "111",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "*://*.bilibili.com/*",
+    "https://api.zhihu.com/*",
+    "https://www.zhihu.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.bilibili.com/*"],
+      "js": ["page.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://www.bilibili.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "知乎热榜屏蔽"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
