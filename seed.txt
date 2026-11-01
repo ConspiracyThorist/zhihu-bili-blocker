@@ -1,6 +1,6 @@
 # zhihu-bili-blocker seed
 # generated: 2026-11-01
-# sources: hot(30) + daily(103) + kept(126)
+# sources: hot(30) + daily(0) + kept(229)
 # total: 259
 # 一行一条，客户端按行读取并本地累积
 
