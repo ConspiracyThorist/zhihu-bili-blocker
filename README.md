@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/ConspiracyThorist/zhihu-bili-blocker?label=release)](https://github.com/ConspiracyThorist/zhihu-bili-blocker/releases)
 [![License](https://img.shields.io/github/license/ConspiracyThorist/zhihu-bili-blocker)](LICENSE)
-[![Chrome](https://img.shields.io/badge/Chrome-111%2B-blue)](https://www.google.com/chrome/)
+[![Chrome](https://img.shields.io/badge/Chrome-116%2B-blue)](https://www.google.com/chrome/)
 [![Userscript](https://img.shields.io/badge/Userscript-Tampermonkey-orange)](https://www.tampermonkey.net/)
 
 同步知乎热榜标题，与 B 站首页推荐流做模糊匹配，在**渲染前**移除搬运视频。提供 Chrome 扩展与油猴脚本两种形态。
@@ -16,8 +16,9 @@
 - **模糊匹配**：四级判定（精确 / 包含 / bigram 相似度 / 覆盖率），能识别加前后缀、删减、等长改写的搬运
 - **本地题库**：热榜标题累积为本地词库，默认保留 30 天、上限 800 条，越界自动淘汰
 - **远端同步**：每日从 CDN 拉取公共词库，首次安装即有 250+ 条可用
+- **侧边栏设置**：浮窗里点「设置」，扩展页面在浏览器侧边栏展开，不遮挡页面内容
 - **失败放行**：接口异常、解析失败、数据未就绪时原样返回，不影响正常浏览
-- **纯本地运行**：不上传任何数据，权限仅 `storage` 与 `alarms`
+- **纯本地运行**：不上传任何数据，权限仅 `storage`、`alarms` 与 `sidePanel`
 
 ## 🚀 安装
 
@@ -28,7 +29,7 @@
 3. 点击「加载已解压的扩展程序」，选择解压后的目录
 4. 刷新 B 站首页
 
-> 需要 Chrome 111 及以上（依赖 `world: "MAIN"` 的 content script）。
+> 需要 Chrome 116 及以上（侧边栏 API 与 `world: "MAIN"` 注入都要求这个版本）。
 >
 > 下载缓慢时可在链接前加 `https://gh-proxy.com/` 走镜像。
 
@@ -56,6 +57,8 @@ https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-b
 ### 页面浮窗
 
 右下角浮窗显示两个数值：**已拦截**（本次页面加载后拦截数）与**累计**（历史总数）。点击展开最近 5 条记录，可对单条执行「放行」。浮窗支持拖拽，位置会持久化。
+
+展开面板右上角的「设置 ↗」会在浏览器侧边栏打开扩展页面，可以边刷 B 站边调参数，不用来回切换标签页。侧边栏不可用时（旧版本或被策略限制）会退化为一个独立小窗口。
 
 ### 扩展弹窗
 
