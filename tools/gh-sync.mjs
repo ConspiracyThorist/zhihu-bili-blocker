@@ -11,7 +11,16 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
 
-const EXCLUDE_DIRS = new Set(['node_modules', 'dist', '.git', '.test-tmp', '.npm-cache', '.dsh-office']);
+// 这些只在本地产出，不该进仓库（.gitignore 里也同步写了一份，便于人读）
+const EXCLUDE_DIRS = new Set([
+  'node_modules',
+  'dist',
+  '.git',
+  '.test-tmp',
+  '.npm-cache',
+  '.dsh-office',
+  'screenshots',
+]);
 const EXCLUDE_FILES = new Set(['seed.meta.json', '.DS_Store', 'Thumbs.db']);
 
 const args = process.argv.slice(2);
