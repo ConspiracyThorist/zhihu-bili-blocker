@@ -374,6 +374,15 @@ async function main() {
     );
     check(clicked === 'ok', '侧边栏：点击设置不抛错');
 
+    const hasAdv = await evaluate(
+      pageCdp,
+      `(function () {
+        const host = document.getElementById('zbb-widget');
+        return String(!!host.shadowRoot.querySelector('.adv'));
+      })()`,
+    );
+    check(hasAdv === 'false', '浮窗：扩展版不渲染油猴专属的「高级设置」', hasAdv);
+
     const drag = JSON.parse(
       (await evaluate(
         pageCdp,
