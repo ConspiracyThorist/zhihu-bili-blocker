@@ -1,9 +1,14 @@
 // ==UserScript==
 // @name         知乎热榜屏蔽B站推荐
+// @name:en      Zhihu Hot List Blocker for Bilibili
 // @namespace    zhihu-bili-blocker
 // @version      1.0.0
-// @description  同步知乎热榜，标题模糊匹配后在渲染前屏蔽 B 站首页推荐里的搬运视频
-// @author       zhihu-bili-blocker
+// @description  把知乎热榜当过滤字典，在 B 站首页推荐里按标题模糊匹配，命中就在渲染前摘掉搬运视频
+// @description:en  Block Bilibili home feed videos that copy Zhihu hot-list questions, matched by title before render
+// @author       ConspiracyThorist
+// @homepageURL  https://github.com/ConspiracyThorist/zhihu-bili-blocker
+// @supportURL   https://github.com/ConspiracyThorist/zhihu-bili-blocker/issues
+// @icon         https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/assets/icons/icon128.png
 // @match        https://www.bilibili.com/*
 // @run-at       document-start
 // @grant        GM_xmlhttpRequest
@@ -14,6 +19,7 @@
 // @connect      api.zhihu.com
 // @connect      www.zhihu.com
 // @connect      gitee.com
+// @connect      gh-proxy.com
 // @connect      fastly.jsdelivr.net
 // @connect      raw.githubusercontent.com
 // @license      MIT
