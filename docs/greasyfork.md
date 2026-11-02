@@ -4,15 +4,22 @@
 
 ## 脚本
 
-**导入方式（推荐）**：发布页选「从 URL 导入」，填：
+**首次发布只能用「手动输入代码」**：新建脚本页面（<https://greasyfork.org/zh-CN/scripts/new>）只有一个代码框，把 `zhihu-bili-blocker.user.js` 全文粘进去，填好下面的表单，发布。
+
+**发布后再配自动同步**（这一步才是「从 URL 导入」）：
+
+1. 打开已发布脚本的「管理」页 → 「同步」区块
+2. 同步方式选「从 URL 导入 / 自动更新」，填：
 
 ```
 https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/zhihu-bili-blocker.user.js
 ```
 
-这样以后仓库里的脚本更新了，GreasyFork 会自动同步，不用手动贴代码。
+3. 保存。之后仓库里的脚本变更会被 GF 定期拉取
 
-> 如果 GF 拉不到 raw（偶发），改用「手动输入代码」，把 `zhihu-bili-blocker.user.js` 全文粘进去。
+> 注意：GF 只在 `@version` 变大时才认为有新版本。只覆盖 GitHub Release 而不升版本号，GF 不会更新。
+>
+> 想让 push 立即触发同步，可再配一个 GitHub Webhook（GF 脚本管理页有现成地址），不配也能用，只是延迟长一些。
 
 ## 基本信息
 
