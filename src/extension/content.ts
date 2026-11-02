@@ -179,6 +179,13 @@ function mountUi(): void {
       postState();
       widget?.refresh();
     },
+    onOpenSettings: () => {
+      try {
+        chrome.runtime.sendMessage({ type: 'OPEN_PANEL' });
+      } catch {
+        /* 扩展上下文失效（比如被重载）时忽略 */
+      }
+    },
   });
 }
 
