@@ -577,7 +577,13 @@
   color: #e8eaed; font: 12px/1.55 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 .panel[hidden] { display: none; }
-.head { display: flex; justify-content: space-between; color: #8b929e; margin-bottom: 8px; }
+.head { display: flex; justify-content: space-between; align-items: center; color: #8b929e; margin-bottom: 8px; }
+.head-right { display: flex; align-items: center; gap: 10px; }
+.open-panel {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  color: #fb7299; font: inherit; font-size: 11px;
+}
+.open-panel:hover { text-decoration: underline; }
 .item { padding: 6px 0; border-top: 1px solid rgba(255,255,255,.07); }
 .item:first-of-type { border-top: 0; padding-top: 0; }
 .t { color: #e8eaed; word-break: break-all; }
@@ -647,9 +653,24 @@
       head.className = "head";
       const left = document.createElement("span");
       left.textContent = "最近拦截";
+      const rightWrap = document.createElement("span");
+      rightWrap.className = "head-right";
       const right = document.createElement("span");
       right.textContent = `题库 ${opts.getPool()} 条`;
-      head.append(left, right);
+      rightWrap.append(right);
+      if (opts.onOpenSettings) {
+        const open = document.createElement("button");
+        open.className = "open-panel";
+        open.textContent = "设置 ↗";
+        open.title = "在侧边栏打开设置页";
+        open.addEventListener("click", (event) => {
+          event.stopPropagation();
+          opts.onOpenSettings?.();
+          close();
+        });
+        rightWrap.append(open);
+      }
+      head.append(left, rightWrap);
       panel.append(head);
       if (records.length === 0) {
         const empty = document.createElement("div");
