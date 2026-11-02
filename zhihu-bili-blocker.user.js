@@ -533,7 +533,7 @@
   };
   var MODES = [
     { id: "conservative", name: "保守", threshold: 0.86, hint: "只拦照搬" },
-    { id: "standard", name: "标准", threshold: 0.72, hint: "多数搬运" },
+    { id: "standard", name: "标准", threshold: 0.78, hint: "多数搬运" },
     { id: "aggressive", name: "激进", threshold: 0.66, hint: "改写也拦" }
   ];
   function modeOf(threshold) {
