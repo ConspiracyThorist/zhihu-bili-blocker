@@ -173,6 +173,32 @@ async function syncSeed(): Promise<HotPool> {
   return next;
 }
 
+/**
+ * 打开侧边栏。sidePanel.open() 要求用户手势，从内容脚本的消息里调用是允许的；
+ * 万一被拒（老版本或策略限制），退回一个独立的小窗口，行为上等价。
+ */
+async function openPanel(windowId?: number): Promise<boolean> {
+  try {
+    if (windowId !== undefined && chrome.sidePanel?.open) {
+      await chrome.sidePanel.open({ windowId });
+      return true;
+    }
+  } catch {
+    /* 继续走兜底 */
+  }
+  try {
+    await chrome.windows.create({
+      url: chrome.runtime.getURL('popup.html'),
+      type: 'popup',
+      width: 380,
+      height: 680,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** 刷新间隔可由 settings.refreshMinutes 覆盖（测试要把 45 分钟压到 1 分钟） */
 async function ensureAlarms(): Promise<void> {
   const settings = await getSettings();
@@ -213,8 +239,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_SEED) void syncSeed();
 });
 
-chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendResponse) => {
-  if (message?.type === 'REFRESH') {
+chrome.runtime.onMessage.addListener(
+  (message: { type?: string }, sender, sendResponse) => {
+    if (message?.type === 'OPEN_PANEL') {
+      openPanel(sender.tab?.windowId)
+        .then((ok) => sendResponse({ ok }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message?.type === 'REFRESH') {
     refresh()
       .then((pool) => sendResponse({ ok: true, pool }))
       .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
