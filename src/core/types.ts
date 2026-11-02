@@ -93,9 +93,16 @@ export interface Mode {
   hint: string;
 }
 
+/**
+ * 三档阈值来自 2026-11-02 的 259 条题库实验（reports/tune.json）：
+ * 分数分布上 1.00 有 43 条（纯照搬），0.85~0.96 是 6 条小改写，
+ * 0.78~0.83 是 5 条明确改写，0.70 以下开始和无关内容混在一起。
+ * 所以保守卡在 0.86（只覆盖原样与小改写），标准落在 0.78（明确改写仍能认），
+ * 激进到 0.66（能多抓 15 条，代价是误伤率上升）。
+ */
 export const MODES: Mode[] = [
   { id: 'conservative', name: '保守', threshold: 0.86, hint: '只拦照搬' },
-  { id: 'standard', name: '标准', threshold: 0.72, hint: '多数搬运' },
+  { id: 'standard', name: '标准', threshold: 0.78, hint: '多数搬运' },
   { id: 'aggressive', name: '激进', threshold: 0.66, hint: '改写也拦' },
 ];
 
