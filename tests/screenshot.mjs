@@ -202,6 +202,15 @@ async function main() {
     await writeFile(join(outDir, 'page.png'), Buffer.from(shot2.data, 'base64'));
     console.log('✓ reports/screenshots/page.png');
 
+    // 展开浮窗面板，截一张带「设置」入口的
+    await page.send('Runtime.evaluate', {
+      expression: `(function(){ const h=document.getElementById('zbb-widget'); h && h.shadowRoot && h.shadowRoot.querySelector('.pill').click(); })()`,
+    });
+    await sleep(600);
+    const shot3 = await page.send('Page.captureScreenshot', { format: 'png' });
+    await writeFile(join(outDir, 'panel.png'), Buffer.from(shot3.data, 'base64'));
+    console.log('✓ reports/screenshots/panel.png');
+
     page.close();
     swCdp.close();
     browser.close();
