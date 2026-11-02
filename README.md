@@ -49,6 +49,8 @@ https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-b
 ```
 
 > 油猴脚本不随 Release 发布，仅在仓库中维护，源码见 [zhihu-bili-blocker.user.js](zhihu-bili-blocker.user.js)。
+>
+> 油猴版没有独立设置页：开关、三档强度、精确阈值、题库状态、远端题库源、手动刷新，全部在浮窗的展开面板里（其中精确阈值等收在面板底部的「高级设置」中）。
 
 ## 📖 使用
 
