@@ -96,6 +96,16 @@ function savePool(): void {
   writeJson(KEYS.hot, state.pool);
 }
 
+function fmtTime(ts: number): string {
+  if (!ts) return '从未成功';
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return d.toDateString() === new Date().toDateString()
+    ? `今天 ${hm}`
+    : `${d.getMonth() + 1}-${d.getDate()} ${hm}`;
+}
+
 function addRecord(record: HitRecord): void {
   const dup = state.records.some(
     (r) => r.biliTitle === record.biliTitle && r.zhihuTitle === record.zhihuTitle,
@@ -299,6 +309,21 @@ function mountUi(): void {
         state.settings = { ...state.settings, threshold };
         saveSettings();
       },
+      // 油猴版没有独立设置页，高级项都塞进浮窗
+      getPoolInfo: () => {
+        const pool = state.pool;
+        if (!pool?.updatedAt) return '题库尚未同步';
+        const remote = pool.remote?.count ? ` · 远端 ${pool.remote.count}` : '';
+        return `题库 ${poolEntries().length} 条 · ${pool.source}${remote} · ${fmtTime(pool.updatedAt)}`;
+      },
+      getSeedUrl: () => state.settings.remoteSeedUrls[0] ?? '',
+      onSeedUrl: (url) => {
+        state.settings = { ...state.settings, remoteSeedUrls: url ? [url] : [] };
+        saveSettings();
+        void syncSeed(true);
+      },
+      onRefresh: () => void refreshHot(true),
+      onSyncSeed: () => void syncSeed(true),
     },
   });
 }
