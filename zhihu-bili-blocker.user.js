@@ -606,6 +606,34 @@
 }
 .chip:hover { border-color: rgba(255,255,255,.24); }
 .chip.active { border-color: #fb7299; color: #fb7299; background: rgba(251,114,153,.1); }
+
+.adv { margin-top: 8px; }
+.adv > summary {
+  cursor: pointer; color: #8b929e; font-size: 11px; list-style: none;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.adv > summary::-webkit-details-marker { display: none; }
+.adv > summary::after { content: '展开'; }
+.adv[open] > summary::after { content: '收起'; }
+.adv-body { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+.adv-row { display: flex; justify-content: space-between; color: #8b929e; font-size: 11px; }
+.adv-value { color: #e8eaed; font-variant-numeric: tabular-nums; }
+.adv-range { width: 100%; accent-color: #fb7299; }
+.adv-info { color: #8b929e; font-size: 11px; }
+.adv-input {
+  width: 100%; padding: 5px 7px; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.12); background: #14161a;
+  color: #e8eaed; font: inherit; font-size: 11px;
+}
+.adv-input:focus { outline: none; border-color: #fb7299; }
+.adv-actions { display: flex; gap: 6px; }
+.adv-btn {
+  flex: 1; padding: 5px 0; border-radius: 6px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.12); background: #16181d;
+  color: #b9bfc9; font: inherit; font-size: 11px;
+}
+.adv-btn:hover { border-color: rgba(255,255,255,.26); }
+.adv-btn:disabled { opacity: .55; cursor: default; }
 `;
   function createWidget(opts) {
     const host = document.createElement("div");
@@ -741,7 +769,84 @@
         modes.append(chip);
       }
       box.append(row, modes);
+      const hasAdvanced = cfg.getPoolInfo || cfg.onRefresh || cfg.onSyncSeed || cfg.getSeedUrl;
+      if (hasAdvanced) box.append(buildAdvanced(cfg));
       panel.append(box);
+    };
+    const buildAdvanced = (cfg) => {
+      const details = document.createElement("details");
+      details.className = "adv";
+      const summary = document.createElement("summary");
+      summary.textContent = "高级设置";
+      details.append(summary);
+      const body = document.createElement("div");
+      body.className = "adv-body";
+      const head = document.createElement("div");
+      head.className = "adv-row";
+      const label = document.createElement("span");
+      label.textContent = "精确阈值";
+      const value = document.createElement("span");
+      value.className = "adv-value";
+      value.textContent = cfg.getThreshold().toFixed(2);
+      head.append(label, value);
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0.6";
+      slider.max = "0.92";
+      slider.step = "0.01";
+      slider.value = String(cfg.getThreshold());
+      slider.className = "adv-range";
+      slider.addEventListener("input", () => {
+        value.textContent = Number(slider.value).toFixed(2);
+      });
+      slider.addEventListener("change", () => {
+        cfg.onThreshold(Number(slider.value));
+        renderPanel();
+      });
+      body.append(head, slider);
+      if (cfg.getPoolInfo) {
+        const info = document.createElement("div");
+        info.className = "adv-info";
+        info.textContent = cfg.getPoolInfo();
+        body.append(info);
+      }
+      if (cfg.getSeedUrl || cfg.onSyncSeed) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "adv-input";
+        input.placeholder = "远端题库源（留空则不启用）";
+        input.spellcheck = false;
+        input.value = cfg.getSeedUrl?.() ?? "";
+        input.addEventListener("change", () => cfg.onSeedUrl?.(input.value.trim()));
+        body.append(input);
+      }
+      if (cfg.onRefresh || cfg.onSyncSeed) {
+        const actions = document.createElement("div");
+        actions.className = "adv-actions";
+        for (const [text2, fn] of [
+          ["刷新热榜", cfg.onRefresh],
+          ["同步题库", cfg.onSyncSeed]
+        ]) {
+          if (!fn) continue;
+          const btn = document.createElement("button");
+          btn.className = "adv-btn";
+          btn.textContent = text2;
+          btn.addEventListener("click", () => {
+            btn.disabled = true;
+            btn.textContent = "请求中…";
+            fn();
+            window.setTimeout(() => {
+              btn.disabled = false;
+              btn.textContent = text2;
+              renderPanel();
+            }, 1500);
+          });
+          actions.append(btn);
+        }
+        body.append(actions);
+      }
+      details.append(body);
+      return details;
     };
     const refresh = () => {
       text.textContent = "已拦截 ";
@@ -917,6 +1022,13 @@
   }
   function savePool() {
     writeJson(KEYS.hot, state.pool);
+  }
+  function fmtTime(ts) {
+    if (!ts) return "从未成功";
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, "0");
+    const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return d.toDateString() === (/* @__PURE__ */ new Date()).toDateString() ? `今天 ${hm}` : `${d.getMonth() + 1}-${d.getDate()} ${hm}`;
   }
   function addRecord(record) {
     const dup = state.records.some(
@@ -1098,7 +1210,22 @@
         onThreshold: (threshold) => {
           state.settings = { ...state.settings, threshold };
           saveSettings();
-        }
+        },
+        // 油猴版没有独立设置页，高级项都塞进浮窗
+        getPoolInfo: () => {
+          const pool = state.pool;
+          if (!pool?.updatedAt) return "题库尚未同步";
+          const remote = pool.remote?.count ? ` · 远端 ${pool.remote.count}` : "";
+          return `题库 ${poolEntries().length} 条 · ${pool.source}${remote} · ${fmtTime(pool.updatedAt)}`;
+        },
+        getSeedUrl: () => state.settings.remoteSeedUrls[0] ?? "",
+        onSeedUrl: (url) => {
+          state.settings = { ...state.settings, remoteSeedUrls: url ? [url] : [] };
+          saveSettings();
+          void syncSeed(true);
+        },
+        onRefresh: () => void refreshHot(true),
+        onSyncSeed: () => void syncSeed(true)
       }
     });
   }
