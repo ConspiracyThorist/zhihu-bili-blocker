@@ -9,13 +9,23 @@
 **发布后再配自动同步**（这一步才是「从 URL 导入」）：
 
 1. 打开已发布脚本的「管理」页 → 「同步」区块
-2. 同步方式选「从 URL 导入 / 自动更新」，填：
+2. 脚本代码同步地址填：
 
 ```
 https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/zhihu-bili-blocker.user.js
 ```
 
-3. 保存。之后仓库里的脚本变更会被 GF 定期拉取
+3. 「默认附加信息」也支持同步，地址填（格式选 **Markdown**）：
+
+```
+https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/docs/greasyfork-additional-info.md
+```
+
+4. 保存。之后仓库里的脚本和附加信息都会被 GF 定期拉取
+
+> 附加信息里如果还有别的语言版本，用「添加本地化的、同步的附加信息」按 `@name:xx` 分别配。
+>
+> 必须用 **raw** 地址。`github.com/.../blob/...` 返回的是 HTML 页面，同步过去会把整页源码当正文。
 
 > 注意：GF 只在 `@version` 变大时才认为有新版本。只覆盖 GitHub Release 而不升版本号，GF 不会更新。
 >
