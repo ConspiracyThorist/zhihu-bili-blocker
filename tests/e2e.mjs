@@ -342,6 +342,38 @@ async function main() {
     );
     check(/已拦截\s*2/.test(String(widget.text ?? '')), '浮窗：本次拦截数已计入', widget.text);
 
+    // 侧边栏入口：SW 里必须有 sidePanel API，浮窗面板里必须有对应按钮
+    const sidePanelApi = await evaluate(
+      swCdp,
+      `String(typeof (chrome.sidePanel && chrome.sidePanel.open))`,
+    );
+    check(sidePanelApi === 'function', '侧边栏：service worker 拿到 sidePanel.open', sidePanelApi);
+
+    const settingsBtn = JSON.parse(
+      (await evaluate(
+        pageCdp,
+        `JSON.stringify((function () {
+          const host = document.getElementById('zbb-widget');
+          const pill = host.shadowRoot.querySelector('.pill');
+          pill.click();
+          const btn = host.shadowRoot.querySelector('.open-panel');
+          return { found: !!btn, text: (btn && btn.textContent) || '' };
+        })())`,
+      )) || '{}',
+    );
+    check(settingsBtn.found === true, '侧边栏：浮窗面板里有「设置」入口', settingsBtn.text);
+
+    const clicked = await evaluate(
+      pageCdp,
+      `(function () {
+        const host = document.getElementById('zbb-widget');
+        const btn = host.shadowRoot.querySelector('.open-panel');
+        btn.click();
+        return 'ok';
+      })()`,
+    );
+    check(clicked === 'ok', '侧边栏：点击设置不抛错');
+
     const drag = JSON.parse(
       (await evaluate(
         pageCdp,
