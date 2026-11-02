@@ -7,6 +7,9 @@ dist/
 # 体检工具的中间产物
 seed.meta.json
 
+# 截图只是本地预览，不进仓库
+reports/screenshots/
+
 # 系统文件
 .DS_Store
 Thumbs.db
