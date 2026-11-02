@@ -26,6 +26,17 @@ body {
   font: 13px/1.5 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 
+/* 侧边栏里视口比 340 宽，撑满并居中；弹出式弹窗仍按 340 排版 */
+@media (min-width: 380px) {
+  body {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    max-height: none;
+    min-height: 100vh;
+  }
+}
+
 .head {
   display: flex;
   align-items: center;
