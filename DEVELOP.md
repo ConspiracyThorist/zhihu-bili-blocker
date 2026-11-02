@@ -61,6 +61,12 @@ npm run e2e                    # 31 项浏览器端到端测试
 
 **DOM 兜底层**处理 SSR 首屏与接口未覆盖的部分。`content.js` 运行于隔离世界，通过 `MutationObserver` 扫描卡片。隐藏对象为**最外层网格单元**，避免 masonry 布局中留下与卡片等高的空白。
 
+### 侧边栏
+
+浮窗面板里的「设置 ↗」通过 `content → background` 发 `OPEN_PANEL` 消息，background 调用 `chrome.sidePanel.open({ windowId })`。该 API 要求用户手势，从内容脚本的消息处理器里调用是允许的；失败时退回 `chrome.windows.create` 开一个小窗口，行为等价。
+
+`manifest.json` 的 `side_panel.default_path` 指向 `popup.html`，所以工具栏弹窗和侧边栏共用同一个页面。`popup.css` 用 `@media (min-width: 380px)` 区分两种宽度：弹窗按 340px 排，侧边栏撑满并居中。
+
 ### 判定规则
 
 | 级别 | 条件 | 适用场景 |
