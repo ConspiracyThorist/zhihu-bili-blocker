@@ -515,7 +515,9 @@
   // src/core/types.ts
   var DEFAULT_SETTINGS = {
     enabled: true,
-    threshold: 0.72,
+    // 默认落在「保守」：体检数据显示 1.00 分那批几乎都是原样照搬，
+    // 而 0.85 以下开始出现改写，默认值宁可少拦也别误伤。
+    threshold: 0.86,
     minLen: 8,
     whitelist: [],
     refreshMinutes: 45,
@@ -530,7 +532,7 @@
     rsshub: ""
   };
   var MODES = [
-    { id: "conservative", name: "保守", threshold: 0.8, hint: "只拦照搬" },
+    { id: "conservative", name: "保守", threshold: 0.86, hint: "只拦照搬" },
     { id: "standard", name: "标准", threshold: 0.72, hint: "多数搬运" },
     { id: "aggressive", name: "激进", threshold: 0.66, hint: "改写也拦" }
   ];
