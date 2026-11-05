@@ -46,11 +46,20 @@ export function hideCard(card: Element): void {
     const parent = target.parentElement;
     if (!parent || parent === document.body || parent === document.documentElement) break;
     const cls = typeof parent.className === 'string' ? parent.className : '';
-    if (parent.childElementCount === 1 && !/container|col_|content|main|feed-content/i.test(cls)) {
+
+    // 只往上收「明确的卡片单元」：class 里带 card/cell/item 且只包着这一张卡。
+    // 以前几乎无条件上收两级，遇到非常规结构会把邻列一起摘掉，表现就是卡片错位。
+    const looksLikeCell = /(^|[s_-])(card|cell|item)([s_-]|$)/i.test(cls) && parent.childElementCount === 1;
+    if (looksLikeCell) {
       target = parent;
       continue;
     }
     break;
+  }
+  // 直接用内联样式隐藏：避免一条全局 [data-zbb] 规则影响到别处，
+  // 也避免某些布局里父级被整块摘掉导致邻列错位
+  if (target instanceof HTMLElement) {
+    target.style.setProperty('display', 'none', 'important');
   }
   target.setAttribute('data-zbb', '1');
 }
@@ -104,8 +113,6 @@ function ensureUpStyle(doc: Document): void {
 }
 a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacity: 1; }
 [data-zbb-up]:hover { border-color: #fb7299; color: #fb7299; }
-/* 只在卡片本身没定位时才补 relative，避免覆盖其它脚本的布局 */
-.bili-video-card, .feed-card { position: relative; }
 `;
   const root = doc.head ?? doc.documentElement;
   if (!root) return;
@@ -116,6 +123,16 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
 export function attachUpButton(card: Element, owner: UpOwner, onBlock: (owner: UpOwner) => void): void {
   if (card.querySelector('[data-zbb-up]')) return;
   ensureUpStyle(card.ownerDocument ?? document);
+  // 卡片本身没定位时补一个 relative，否则绝对定位会跑到外层容器上
+  const cardEl = card as HTMLElement;
+  if (typeof getComputedStyle === 'function') {
+    const pos = getComputedStyle(cardEl).position;
+    if (!pos || pos === 'static') {
+      cardEl.style.position = 'relative';
+      cardEl.setAttribute('data-zbb-pos', '1');
+    }
+  }
+
   const btn = document.createElement('button');
   btn.setAttribute('data-zbb-up', '1');
   btn.textContent = '屏蔽此 UP';
