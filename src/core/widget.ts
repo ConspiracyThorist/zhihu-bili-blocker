@@ -18,6 +18,9 @@ export interface WidgetSettings {
   onSeedUrl?: (url: string) => void;
   onRefresh?: () => void;
   onSyncSeed?: () => void;
+  /** 匿名贡献开关 */
+  getContribute?: () => boolean;
+  onContribute?: (value: boolean) => void;
 }
 
 export interface WidgetOptions {
@@ -104,6 +107,7 @@ const STYLE = `
 .adv-value { color: #e8eaed; font-variant-numeric: tabular-nums; }
 .adv-range { width: 100%; accent-color: #fb7299; }
 .adv-info { color: #8b929e; font-size: 11px; }
+.adv-toggle { accent-color: #fb7299; cursor: pointer; }
 .adv-input {
   width: 100%; padding: 5px 7px; border-radius: 6px;
   border: 1px solid rgba(255,255,255,.12); background: #14161a;
@@ -338,6 +342,24 @@ function createWidget(opts: WidgetOptions): {
       info.className = 'adv-info';
       info.textContent = cfg.getPoolInfo();
       body.append(info);
+    }
+
+    // 匿名贡献开关：手动拉黑 UP 时是否上报 mid
+    if (cfg.getContribute && cfg.onContribute) {
+      const row = document.createElement('div');
+      row.className = 'adv-row';
+      const label = document.createElement('span');
+      label.textContent = '匿名贡献 UP';
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.className = 'adv-toggle';
+      toggle.checked = cfg.getContribute();
+      toggle.title = '手动屏蔽 UP 时把 UP 编号提交到公共库审核，可随时关闭';
+      toggle.addEventListener('change', () => {
+        cfg.onContribute?.(toggle.checked);
+      });
+      row.append(label, toggle);
+      body.append(row);
     }
 
     if (cfg.getSeedUrl || cfg.onSyncSeed) {
