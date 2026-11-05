@@ -67,6 +67,19 @@ npm run e2e                    # 31 项浏览器端到端测试
 
 `manifest.json` 的 `side_panel.default_path` 指向 `popup.html`，所以工具栏弹窗和侧边栏共用同一个页面。`popup.css` 用 `@media (min-width: 380px)` 区分两种宽度：弹窗按 340px 排，侧边栏撑满并居中。
 
+### UP 库
+
+题库回答「这个问题被搬了」，UP 库回答「这个人一直在搬」。两套判定共用同一个 `matchTitle`。
+
+自动发现走 CI（`.github/workflows/discover.yml`，每周一次）：`tools/discover-ups.ts` 拿每条题库标题搜 B 站，对结果做匹配，按 mid 统计 `hits / total`，只有 `hits ≥ 2 且 rate ≥ 30%` 的 UP 才写入 `ups.json`。双门槛是刻意的——单条命中可能只是标题撞车，误封一个号比漏拦一百条视频代价大。
+
+客户端把 `ups.json` 与本地手动条目合并（`core/ups.ts` 的 `mergeUps`：手动条目优先，auto 条目整批替换），拦截时两处一起查：
+
+- 接口层：`pruneFeed` 的 `shouldDrop` 用 `owner.mid` 判
+- DOM 层：`startScanner` 的 `onCard` 用卡片里的空间链接判
+
+页面上的「屏蔽此 UP」按钮由 `core/dom.ts` 的 `attachUpButton` 注入，扩展与油猴共用。
+
 ### 判定规则
 
 | 级别 | 条件 | 适用场景 |
