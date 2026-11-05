@@ -18,6 +18,11 @@ export interface ScannerOptions {
   settings: () => Settings;
   hot: () => HotEntry[];
   onHit: (biliTitle: string, result: MatchResult) => void;
+  /**
+   * 每张卡片先过这里，返回 true 表示已处理（比如 UP 库命中被隐藏），
+   * 不再走标题匹配。用来给宿主注入「拉黑这个 UP」按钮。
+   */
+  onCard?: (card: Element) => boolean | void;
 }
 
 export function extractTitle(card: Element): string {
@@ -58,6 +63,62 @@ export function ensureStyle(doc: Document = document): void {
   (doc.head ?? doc.documentElement).appendChild(style);
 }
 
+export interface UpOwner {
+  mid: number;
+  name: string;
+}
+
+const UP_STYLE_ID = 'zbb-up-style';
+
+/** 卡片上的 UP 信息：mid 从空间链接里取，名字从作者节点取 */
+export function cardOwner(card: Element): UpOwner | null {
+  const link = card.querySelector('a[href*="space.bilibili.com"]');
+  const href = link?.getAttribute('href') ?? '';
+  const mid = Number(href.match(/space\.bilibili\.com\/(\d+)/)?.[1] ?? 0);
+  if (!mid) return null;
+  const name =
+    card
+      .querySelector('.bili-video-card__info--author, .up-name, [class*="author"]')
+      ?.textContent?.trim() ?? '';
+  return { mid, name: name.slice(0, 40) };
+}
+
+function ensureUpStyle(doc: Document): void {
+  if (doc.getElementById(UP_STYLE_ID)) return;
+  const style = doc.createElement('style');
+  style.id = UP_STYLE_ID;
+  style.textContent = `
+[data-zbb-up] {
+  position: absolute; top: 6px; right: 6px; z-index: 20;
+  padding: 3px 8px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.28);
+  background: rgba(20,22,27,.82); color: #fff;
+  font: 11px/1.4 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  opacity: 0; transition: opacity .15s; backdrop-filter: blur(6px);
+}
+a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacity: 1; }
+[data-zbb-up]:hover { border-color: #fb7299; color: #fb7299; }
+.bili-video-card, .feed-card { position: relative; }
+`;
+  (doc.head ?? doc.documentElement).appendChild(style);
+}
+
+/** 往卡片右上角挂一个「屏蔽此 UP」按钮，宿主决定点击后干什么 */
+export function attachUpButton(card: Element, owner: UpOwner, onBlock: (owner: UpOwner) => void): void {
+  if (card.querySelector('[data-zbb-up]')) return;
+  ensureUpStyle(card.ownerDocument ?? document);
+  const btn = document.createElement('button');
+  btn.setAttribute('data-zbb-up', '1');
+  btn.textContent = '屏蔽此 UP';
+  btn.title = `把 ${owner.name || owner.mid} 加入 UP 库，此后其视频不再出现在首页`;
+  btn.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onBlock(owner);
+  });
+  card.appendChild(btn);
+}
+
 export interface Scanner {
   /** 立即扫一遍，用于"热榜列表刚到"时补扫已经渲染的卡片 */
   scan: () => void;
@@ -85,6 +146,7 @@ export function startScanner(opts: ScannerOptions): Scanner {
     cards.forEach((card) => {
       if (seen.has(card)) return;
       seen.add(card);
+      if (opts.onCard?.(card) === true) return;
       const title = extractTitle(card);
       if (!title) return;
       const result = matchTitle(title, hot, settings);
