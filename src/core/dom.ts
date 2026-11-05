@@ -175,7 +175,7 @@ export function startScanner(opts: ScannerOptions): Scanner {
     timer = window.setTimeout(() => {
       timer = 0;
       scan();
-    }, 120);
+    }, 200);
   };
 
   scan();
