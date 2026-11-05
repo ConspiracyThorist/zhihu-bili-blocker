@@ -7,17 +7,10 @@
 ```bash
 npm install --ignore-scripts
 npm run typecheck
-npm test
 npm run build
 ```
 
-改完代码提交前跑一遍 `npm run check`（类型检查 + 单测 + 构建 + 冒烟）。
-
-端到端测试需要能启动 Chrome 的桌面会话：
-
-```bash
-npm run e2e
-```
+测试套件由维护者在本地运行，不随仓库发布。
 
 ## 提交 PR
 
