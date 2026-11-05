@@ -218,11 +218,15 @@
       const parent = target.parentElement;
       if (!parent || parent === document.body || parent === document.documentElement) break;
       const cls = typeof parent.className === "string" ? parent.className : "";
-      if (parent.childElementCount === 1 && !/container|col_|content|main|feed-content/i.test(cls)) {
+      const looksLikeCell = /(^|[s_-])(card|cell|item)([s_-]|$)/i.test(cls) && parent.childElementCount === 1;
+      if (looksLikeCell) {
         target = parent;
         continue;
       }
       break;
+    }
+    if (target instanceof HTMLElement) {
+      target.style.setProperty("display", "none", "important");
     }
     target.setAttribute("data-zbb", "1");
   }
@@ -262,8 +266,6 @@
 }
 a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacity: 1; }
 [data-zbb-up]:hover { border-color: #fb7299; color: #fb7299; }
-/* 只在卡片本身没定位时才补 relative，避免覆盖其它脚本的布局 */
-.bili-video-card, .feed-card { position: relative; }
 `;
     const root = doc.head ?? doc.documentElement;
     if (!root) return;
@@ -272,6 +274,14 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
   function attachUpButton(card, owner, onBlock) {
     if (card.querySelector("[data-zbb-up]")) return;
     ensureUpStyle(card.ownerDocument ?? document);
+    const cardEl = card;
+    if (typeof getComputedStyle === "function") {
+      const pos = getComputedStyle(cardEl).position;
+      if (!pos || pos === "static") {
+        cardEl.style.position = "relative";
+        cardEl.setAttribute("data-zbb-pos", "1");
+      }
+    }
     const btn = document.createElement("button");
     btn.setAttribute("data-zbb-up", "1");
     btn.textContent = "屏蔽此 UP";
@@ -642,12 +652,9 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
     ],
     // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
     contributeUps: true,
-    upsEndpoints: [
-      "https://zbb-ups-nwwblkigcf.cn-hangzhou.fcapp.run",
-      // 国内，主用
-      "https://zbb-ups.zbb-eaa69b.workers.dev"
-      // 境外兜底
-    ]
+    // 投稿端点暂时留空：原阿里云账号欠费、Cloudflare 国内不可达。
+    // 配置了地址才会启用上传，否则手动拉黑只写本地库。
+    upsEndpoints: []
   };
   var MODES = [
     { id: "conservative", name: "保守", threshold: 0.86, hint: "只拦照搬" },
