@@ -21,7 +21,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const LOOSE: Settings = { ...DEFAULT_SETTINGS, threshold: 0.5 };
 const LIMIT = Number((process.argv.find((a) => a.startsWith('--limit=')) ?? '--limit=0').split('=')[1]);
 
-const seed = await readFile(join(root, 'seed.txt'), 'utf8');
+const seed = await readFile(join(root, 'data', 'seed.txt'), 'utf8');
 const titles = seed
   .split(/\r?\n/)
   .map((l) => l.trim())
