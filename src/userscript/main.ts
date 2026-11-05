@@ -111,16 +111,10 @@ function addUp(mid: number, name: string): void {
 let sessionHits = 0;
 let widget: ReturnType<typeof mountWidget> | null = null;
 
-/** 兼容 v1（titles）与 v2（entries）两种存储结构 */
+/** 题库只有一种存储结构：entries + 元信息 */
 function poolEntries(): PoolEntry[] {
-  const raw = state.pool as (HotPool & { titles?: string[] }) | null;
-  if (!raw) return [];
-  if (Array.isArray(raw.entries)) return raw.entries;
-  if (Array.isArray(raw.titles)) {
-    const at = raw.updatedAt || Date.now();
-    return raw.titles.map((title) => ({ title, firstSeen: at, lastSeen: at, origin: 'hot' as const }));
-  }
-  return [];
+  const raw = state.pool;
+  return Array.isArray(raw?.entries) ? raw.entries : [];
 }
 
 function rebuild(): void {
