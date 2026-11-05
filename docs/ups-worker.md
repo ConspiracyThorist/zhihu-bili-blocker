@@ -15,7 +15,7 @@ wrangler login
 ## 二、建 KV 命名空间
 
 ```bash
-cd worker
+cd server/cloudflare
 wrangler kv namespace create UPS_QUEUE
 ```
 
