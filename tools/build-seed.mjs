@@ -1,5 +1,5 @@
 /**
- * 生成题库种子文件 seed.txt（纯文本，一行一条，# 开头是注释）。
+ * 生成题库种子文件 data/seed.txt（纯文本，一行一条，# 开头是注释）。
  *
  * 数据来源：
  *   1. 知乎热榜（当前 30 条）
@@ -9,7 +9,7 @@
  * 命中率是 17.0%，高于热榜时事类的 13.3%——搬运者做"知乎问答"合集时
  * 往往直接拿问题原文当标题。
  *
- * 用法：node tools/build-seed.mjs [--days 60] [--out seed.txt]
+ * 用法：node tools/build-seed.mjs [--days 60] [--out data/seed.txt]
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -26,7 +26,7 @@ function arg(name, fallback) {
 }
 
 const days = Number(arg('days', 60));
-const outPath = arg('out', join(root, 'seed.txt'));
+const outPath = arg('out', join(root, 'data', 'seed.txt'));
 const maxEntries = Number(arg('max', 1000));
 
 async function getJson(url) {
