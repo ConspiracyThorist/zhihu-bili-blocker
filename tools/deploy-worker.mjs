@@ -23,7 +23,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT_NAME = 'zbb-ups';
 const KV_TITLE = 'UPS_QUEUE';
 const DRY = process.argv.includes('--dry-run');
-const TOKEN_PATH = 'D:\\test\\.cf-token';
+const TOKEN_PATH = join(root, '.local', 'cloudflare-token');
 
 async function readToken() {
   const env = (process.env.CLOUDFLARE_API_TOKEN ?? '').trim();
@@ -128,7 +128,7 @@ console.log(`✓ 上传 Worker ${SCRIPT_NAME}`);
 // ---- 5. 密钥 ----
 let secret = '';
 try {
-  secret = (JSON.parse(await readFile(join(root, 'server', 'cloudflare', 'deploy-result.json'), 'utf8')).token ?? '').trim();
+  secret = (JSON.parse(await readFile(join(root, '.local', 'deploy-result.cloudflare.json'), 'utf8')).token ?? '').trim();
 } catch {
   secret = '';
 }
