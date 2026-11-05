@@ -47,5 +47,5 @@ jobs:
             echo "UP 库无变化"
             exit 0
           fi
-          git commit -m "chore: 并入投稿 UP（$(date -u +%Y-%m-%d %H:%M））"
+          git commit -m "chore: merge submitted UPs ($(date -u +%Y-%m-%d %H:%M))"
           git push
