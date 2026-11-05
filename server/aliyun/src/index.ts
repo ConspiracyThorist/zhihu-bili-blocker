@@ -40,8 +40,15 @@ interface Queue {
   };
 }
 
+/**
+ * 默认走同地域内网端点：FC 和 OSS 都在同一个 region 时，
+ * 内网访问不计公网流量费，也更快。需要跨地域时把 OSS_INTERNAL 设成 0。
+ */
 function bucketHost(): string {
-  return `${process.env.OSS_BUCKET}.${process.env.OSS_REGION}.aliyuncs.com`;
+  const bucket = process.env.OSS_BUCKET;
+  const region = process.env.OSS_REGION;
+  const internal = (process.env.OSS_INTERNAL ?? '1') !== '0';
+  return internal ? `${bucket}.${region}-internal.aliyuncs.com` : `${bucket}.${region}.aliyuncs.com`;
 }
 
 /** OSS V1 签名：VERB\n\nContent-Type\nDate\n/{bucket}/{key} */
