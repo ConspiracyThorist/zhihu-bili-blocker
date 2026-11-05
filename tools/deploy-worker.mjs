@@ -2,7 +2,7 @@
  * 一键部署投稿 Worker（不用本地装 wrangler）。
  *
  * 做四件事：
- *   1. 用 esbuild 把 worker/src/index.ts 打成单文件 ESM
+ *   1. 用 esbuild 把 server/cloudflare/src/index.ts 打成单文件 ESM
  *   2. 找到（或创建）KV 命名空间 UPS_QUEUE
  *   3. 上传 Worker（模块格式），绑定 KV
  *   4. 生成并写入 SUBMIT_TOKEN 密钥，打印出来给 CI 用
@@ -66,11 +66,11 @@ function esbuildBinary() {
   return bin;
 }
 
-const outDir = join(root, 'dist', 'worker');
+const outDir = join(root, 'dist', 'server-cloudflare');
 await mkdir(outDir, { recursive: true });
 const bundlePath = join(outDir, 'index.js');
 execFileSync(esbuildBinary(), [
-  join(root, 'worker', 'src', 'index.ts'),
+  join(root, 'server', 'cloudflare', 'src', 'index.ts'),
   '--bundle',
   '--format=esm',
   '--platform=neutral',
@@ -128,7 +128,7 @@ console.log(`✓ 上传 Worker ${SCRIPT_NAME}`);
 // ---- 5. 密钥 ----
 let secret = '';
 try {
-  secret = (JSON.parse(await readFile(join(root, 'worker', 'deploy-result.json'), 'utf8')).token ?? '').trim();
+  secret = (JSON.parse(await readFile(join(root, 'server', 'cloudflare', 'deploy-result.json'), 'utf8')).token ?? '').trim();
 } catch {
   secret = '';
 }
@@ -155,7 +155,7 @@ if (!subdomain) {
 }
 
 const endpoint = `https://${SCRIPT_NAME}.${subdomain}.workers.dev`;
-const outFile = join(root, 'worker', 'deploy-result.json');
+const outFile = join(root, 'server', 'cloudflare', 'deploy-result.json');
 await writeFile(
   outFile,
   `${JSON.stringify({ endpoint, token: secret, accountId: account.id, kvId: kv.id, deployedAt: new Date().toISOString() }, null, 2)}\n`,
