@@ -164,7 +164,7 @@ async function main() {
     await sleep(1200);
     const shot1 = await popupCdp.send('Page.captureScreenshot', { format: 'png' });
     await writeFile(join(outDir, 'popup.png'), Buffer.from(shot1.data, 'base64'));
-    console.log('✓ reports/screenshots/popup.png');
+    console.log('✓ dist/screenshots/popup.png');
     popupCdp.close();
 
     // 2) 页面 + 浮窗
@@ -200,7 +200,7 @@ async function main() {
     await sleep(3500);
     const shot2 = await page.send('Page.captureScreenshot', { format: 'png' });
     await writeFile(join(outDir, 'page.png'), Buffer.from(shot2.data, 'base64'));
-    console.log('✓ reports/screenshots/page.png');
+    console.log('✓ dist/screenshots/page.png');
 
     // 展开浮窗面板，截一张带「设置」入口的
     await page.send('Runtime.evaluate', {
@@ -209,7 +209,7 @@ async function main() {
     await sleep(600);
     const shot3 = await page.send('Page.captureScreenshot', { format: 'png' });
     await writeFile(join(outDir, 'panel.png'), Buffer.from(shot3.data, 'base64'));
-    console.log('✓ reports/screenshots/panel.png');
+    console.log('✓ dist/screenshots/panel.png');
 
     page.close();
     swCdp.close();
