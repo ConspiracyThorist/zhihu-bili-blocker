@@ -143,7 +143,14 @@ export function attachUpButton(card: Element, owner: UpOwner, onBlock: (owner: U
   // 找不到封面就不挂：退回卡片根节点时定位上下文经常不对，
   // 按钮会飘到页面左上角。宁可这个位置没有按钮，也不要错位。
   if (!cover) return;
-  const host = cover as HTMLElement;
+
+  // 骨架屏 / 还没量出尺寸的封面：这时挂上去按钮会落在零高度盒子里，
+  // 看起来就像飘在标题上。等下一轮扫描量到真实尺寸再挂。
+  if (/skeleton/i.test(String(cover.className))) return;
+  const box = cover as HTMLElement;
+  if (box.clientWidth < 40 || box.clientHeight < 40) return;
+
+  const host = box;
 
   // 绝不修改宿主的 position：B 站封面里还有时长、播放量等绝对定位的角标，
   // 一旦我们把 static 改成 relative，这些角标的参照物就变了，整张卡会「错位」。
