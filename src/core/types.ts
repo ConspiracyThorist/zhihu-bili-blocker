@@ -40,6 +40,10 @@ export interface Settings {
   upBlockEnabled: boolean;
   /** 远端 UP 库地址，按序尝试 */
   remoteUpsUrls: string[];
+  /** 手动屏蔽 UP 时是否匿名贡献到公共库 */
+  contributeUps: boolean;
+  /** 投稿接收端地址（Cloudflare Worker），留空则不上报 */
+  upsEndpoint: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -64,6 +68,9 @@ export const DEFAULT_SETTINGS: Settings = {
     'https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/ups.json',
     'https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/ups.json',
   ],
+  // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
+  contributeUps: true,
+  upsEndpoint: '',
 };
 
 export interface RemoteMeta {
@@ -131,6 +138,7 @@ export const KEYS = {
   records: 'zbb:records',
   stats: 'zbb:stats',
   ups: 'zbb:ups',
+  outbox: 'zbb:outbox',
 } as const;
 
 export const RECORD_LIMIT = 50;
