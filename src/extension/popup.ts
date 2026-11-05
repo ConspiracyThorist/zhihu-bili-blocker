@@ -17,6 +17,7 @@ let settings: Settings = { ...DEFAULT_SETTINGS };
 let pool: HotPool | null = null;
 let records: HitRecord[] = [];
 let ups: UpEntry[] = [];
+let outbox: { mid: number; name: string }[] = [];
 let stats: Stats = { total: 0 };
 
 /** 三段式强度选择：主界面只暴露档位，精确阈值收进高级设置 */
@@ -49,6 +50,21 @@ function renderModes(): void {
 }
 
 function renderThreshold(): void {
+  ($('#exportOutbox') as HTMLButtonElement | null)?.addEventListener('click', async () => {
+    const payload = JSON.stringify({ ups: outbox }, null, 2);
+    try {
+      await navigator.clipboard.writeText(payload);
+      const btn = $('#exportOutbox') as HTMLButtonElement;
+      const old = btn.textContent;
+      btn.textContent = '已复制';
+      setTimeout(() => {
+        btn.textContent = old;
+      }, 1500);
+    } catch {
+      /* 剪贴板不可用时静默失败 */
+    }
+  });
+
   ($('#contribute') as HTMLInputElement).addEventListener('change', (event) => {
     settings = { ...settings, contributeUps: (event.target as HTMLInputElement).checked };
     void saveSettings();
@@ -191,12 +207,14 @@ async function readState(): Promise<void> {
     [KEYS.records]: [],
     [KEYS.stats]: { total: 0 },
     [KEYS.ups]: null,
+    [KEYS.outbox]: [],
   });
   settings = { ...DEFAULT_SETTINGS, ...(data[KEYS.settings] as Partial<Settings>) };
   pool = data[KEYS.hot] as HotPool | null;
   records = (data[KEYS.records] as HitRecord[]) ?? [];
   stats = { total: 0, ...(data[KEYS.stats] as Partial<Stats>) };
   ups = (data[KEYS.ups] as { entries?: UpEntry[] } | null)?.entries ?? [];
+  outbox = ((data as Record<string, unknown>)[KEYS.outbox] as { mid: number; name: string }[] | undefined) ?? [];
   renderSettings();
   renderPool();
   renderRecords();
@@ -204,6 +222,12 @@ async function readState(): Promise<void> {
 }
 
 /** UP 库：列出条目，支持单条移除与整号屏蔽开关 */
+/** 待投稿列表：没有配置接收端时，用户可以手动导出给自己的维护流程 */
+function renderOutbox(): void {
+  const el = $('#outboxCount') as HTMLElement | null;
+  if (el) el.textContent = String(outbox.length);
+}
+
 function renderUps(): void {
   const list = $('#upList');
   ($('#upCount') as HTMLElement).textContent = String(ups.length);
@@ -229,6 +253,7 @@ function renderUps(): void {
         [KEYS.ups]: { entries: ups, updatedAt: Date.now(), error: '' },
       });
       renderUps();
+      renderOutbox();
     });
     li.append(name, meta, remove);
     list.append(li);
