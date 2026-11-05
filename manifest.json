@@ -11,6 +11,7 @@
   "host_permissions": [
     "*://*.bilibili.com/*",
     "*://*.workers.dev/*",
+    "*://*.fcapp.run/*",
     "https://api.zhihu.com/*",
     "https://www.zhihu.com/*"
   ],
