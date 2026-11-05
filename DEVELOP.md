@@ -71,7 +71,7 @@ npm run e2e                    # 31 项浏览器端到端测试
 
 题库回答「这个问题被搬了」，UP 库回答「这个人一直在搬」。两套判定共用同一个 `matchTitle`。
 
-自动发现走 CI（`.github/workflows/discover.yml`，每周一次）：`tools/discover-ups.ts` 拿每条题库标题搜 B 站，对结果做匹配，按 mid 统计 `hits / total`，只有 `hits ≥ 2 且 rate ≥ 30%` 的 UP 才写入 `ups.json`。双门槛是刻意的——单条命中可能只是标题撞车，误封一个号比漏拦一百条视频代价大。
+自动发现走 CI（`.github/workflows/discover.yml`）：每周一增量、每月 1 日全量。增量只处理 `ups.json` 里 `scanned` 未记录的标题，结果**合并**进已有条目；全量重扫并重建。两种模式共用 `qualifies()` 判定：`tools/discover-ups.ts` 拿每条题库标题搜 B 站，对结果做匹配，按 mid 统计 `hits / total`，只有 `hits ≥ 2 且 rate ≥ 30%` 的 UP 才写入 `ups.json`。双门槛是刻意的——单条命中可能只是标题撞车，误封一个号比漏拦一百条视频代价大。
 
 客户端把 `ups.json` 与本地手动条目合并（`core/ups.ts` 的 `mergeUps`：手动条目优先，auto 条目整批替换），拦截时两处一起查：
 
