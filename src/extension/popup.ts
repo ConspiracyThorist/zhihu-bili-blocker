@@ -1,3 +1,4 @@
+import { type UpEntry } from '../core/ups';
 import {
   DEFAULT_SETTINGS,
   KEYS,
@@ -15,6 +16,7 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string): T =>
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let pool: HotPool | null = null;
 let records: HitRecord[] = [];
+let ups: UpEntry[] = [];
 let stats: Stats = { total: 0 };
 
 /** 三段式强度选择：主界面只暴露档位，精确阈值收进高级设置 */
@@ -47,6 +49,12 @@ function renderModes(): void {
 }
 
 function renderThreshold(): void {
+  ($('#upEnabled') as HTMLInputElement).addEventListener('change', (event) => {
+    settings = { ...settings, upBlockEnabled: (event.target as HTMLInputElement).checked };
+    void saveSettings();
+    void chrome.runtime.sendMessage({ type: 'SYNC_UPS' });
+  });
+
   const slider = $('#threshold') as HTMLInputElement;
   slider.value = String(settings.threshold);
   $('#thresholdValue').textContent = settings.threshold.toFixed(2);
@@ -106,6 +114,7 @@ function renderPool(): void {
   }
 
   renderStats();
+  renderUps();
 }
 
 function renderSettings(): void {
@@ -176,15 +185,48 @@ async function readState(): Promise<void> {
     [KEYS.hot]: null,
     [KEYS.records]: [],
     [KEYS.stats]: { total: 0 },
+    [KEYS.ups]: null,
   });
   settings = { ...DEFAULT_SETTINGS, ...(data[KEYS.settings] as Partial<Settings>) };
   pool = data[KEYS.hot] as HotPool | null;
   records = (data[KEYS.records] as HitRecord[]) ?? [];
   stats = { total: 0, ...(data[KEYS.stats] as Partial<Stats>) };
+  ups = (data[KEYS.ups] as { entries?: UpEntry[] } | null)?.entries ?? [];
   renderSettings();
   renderPool();
   renderRecords();
   renderStats();
+}
+
+/** UP 库：列出条目，支持单条移除与整号屏蔽开关 */
+function renderUps(): void {
+  const list = $('#upList');
+  ($('#upCount') as HTMLElement).textContent = String(ups.length);
+  ($('#upEnabled') as HTMLInputElement).checked = settings.upBlockEnabled;
+  list.textContent = '';
+  ($('#upEmpty') as HTMLElement).classList.toggle('hidden', ups.length > 0);
+
+  for (const entry of ups) {
+    const li = document.createElement('li');
+    const name = document.createElement('span');
+    name.className = 'title';
+    name.textContent = entry.name || String(entry.mid);
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = `${entry.source === 'manual' ? '手动' : '自动'} · ${entry.mid}`;
+    const remove = document.createElement('button');
+    remove.className = 'allow';
+    remove.textContent = '移除';
+    remove.addEventListener('click', () => {
+      ups = ups.filter((u) => u.mid !== entry.mid);
+      void chrome.storage.local.set({
+        [KEYS.ups]: { entries: ups, updatedAt: Date.now(), error: '' },
+      });
+      renderUps();
+    });
+    li.append(name, meta, remove);
+    list.append(li);
+  }
 }
 
 function bind(): void {
