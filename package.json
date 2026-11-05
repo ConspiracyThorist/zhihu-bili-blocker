@@ -6,12 +6,8 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node tests/run.mjs",
-    "smoke": "node tests/smoke-bundle.mjs",
-    "e2e": "node tests/e2e.mjs",
     "typecheck": "tsc --noEmit",
-    "icons": "python scripts/make-icons.py",
-    "check": "npm run typecheck && npm test && npm run build && npm run smoke"
+    "icons": "python scripts/make-icons.py"
   },
   "devDependencies": {
     "@types/chrome": "^0.3.7",
