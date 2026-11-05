@@ -133,33 +133,39 @@ export async function createSearcher({ intervalMs = 1200 } = {}) {
    */
   async function userVideos(mid, pageSize = 50) {
     if (!mixin || Date.now() - keyAt > 15 * 60 * 1000) await refreshKeys();
-    await throttle();
-    calls += 1;
 
-    const params = { mid, ps: pageSize, pn: 1, order: 'pubdate', platform: 'web' };
-    const res = await fetch(
-      `https://api.bilibili.com/x/space/wbi/arc/search?${sign(params, mixin)}`,
-      {
+    // 空间接口的风控比搜索更敏感，被 412 打到就换 cookie、刷新 wbi 再来一次
+    const attempt = async () => {
+      await throttle();
+      calls += 1;
+      const params = { mid, ps: pageSize, pn: 1, order: 'pubdate', platform: 'web' };
+      const r = await fetch(`https://api.bilibili.com/x/space/wbi/arc/search?${sign(params, mixin)}`, {
         headers: {
           'user-agent': UA,
           referer: `https://space.bilibili.com/${mid}/video`,
           cookie: cookieHeader(),
           accept: 'application/json',
         },
-      },
-    );
-    const json = await res.json().catch(() => null);
-    const list = json?.data?.list?.vlist;
-    if (!Array.isArray(list)) return { ok: false, code: json?.code, items: [] };
+      });
+      return { status: r.status, json: await r.json().catch(() => null) };
+    };
+
+    let out = await attempt();
+    if (out.status === 412 || out.json?.code === -412) {
+      await sleep(4000);
+      await primeCookies();
+      await refreshKeys();
+      out = await attempt();
+    }
+
+    const list = out.json?.data?.list?.vlist;
+    if (!Array.isArray(list)) return { ok: false, code: out.json?.code, items: [] };
     return {
-      ok: json.code === 0,
-      code: json.code,
+      ok: out.json.code === 0,
+      code: out.json.code,
       items: list.map((v) => ({ bvid: v.bvid, title: stripHtml(v.title), created: v.created })),
     };
   }
-
-  await primeCookies();
-  await refreshKeys();
 
   return {
     search,
