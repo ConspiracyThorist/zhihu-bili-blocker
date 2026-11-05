@@ -33,6 +33,8 @@ interface PendingUp {
 
 interface Queue {
   pending: Record<string, PendingUp>;
+  /** 每日计数：date -> ip -> 次数。只保留最近两天 */
+  rates?: Record<string, Record<string, number>>;
 }
 
 function bucketHost(): string {
@@ -133,12 +135,28 @@ async function handleSubmit(bodyText: string, headers: Record<string, string>) {
   if (mid === null) return json(400, { ok: false, error: 'bad mid' });
 
   const limit = Number(process.env.RATE_LIMIT ?? '20');
-  const rateKey = `${RATE_PREFIX}${new Date().toISOString().slice(0, 10)}/${clientIp(headers)}.json`;
-  const used = (await readJson<{ n: number }>(rateKey, { n: 0 })).n;
-  if (used >= limit) return json(429, { ok: false, error: 'rate limited' });
-  await writeJson(rateKey, { n: used + 1 });
+  const globalLimit = Number(process.env.GLOBAL_RATE_LIMIT ?? '3000');
 
   const queue = await readJson<Queue>(QUEUE_KEY, { pending: {} });
+  const today = new Date().toISOString().slice(0, 10);
+  const rates = queue.rates ?? {};
+
+  // 只留最近两天，其余随写入顺手清掉
+  for (const day of Object.keys(rates)) {
+    if (day !== today && Date.now() - Date.parse(day) > 2 * 86_400_000) delete rates[day];
+  }
+
+  const dayRates = rates[today] ?? {};
+  const dayTotal = Object.values(dayRates).reduce((a, b) => a + b, 0);
+  // 全局限额：IP 可以伪造，总量伪造不了
+  if (dayTotal >= globalLimit) return json(503, { ok: false, error: 'daily quota exhausted' });
+
+  const ip = clientIp(headers);
+  if ((dayRates[ip] ?? 0) >= limit) return json(429, { ok: false, error: 'rate limited' });
+
+  dayRates[ip] = (dayRates[ip] ?? 0) + 1;
+  rates[today] = dayRates;
+  queue.rates = rates;
   const now = Date.now();
   const prev = queue.pending[mid];
 
