@@ -48,4 +48,10 @@ jobs:
             exit 0
           fi
           git commit -m "chore: merge submitted UPs ($(date -u +%Y-%m-%d %H:%M))"
-          git push
+          # 并发推送时可能被拒绝，先 rebase 再重试几次
+          for i in 1 2 3 4 5; do
+            if git push; then break; fi
+            echo "push 被拒，第 $i 次重试"
+            sleep 3
+            git pull --rebase --autostash || true
+          done
