@@ -1,5 +1,6 @@
 import { parseRss, pickTitles } from '../core/hotparse';
 import { mergePool, parseSeed, prunePool, replaceOrigin, type PoolEntry } from '../core/pool';
+import { mergeUps, parseUpsFile, type UpEntry } from '../core/ups';
 import {
   DEFAULT_SETTINGS,
   FETCH_TIMEOUT_MS,
@@ -10,6 +11,7 @@ import {
 
 const ALARM_REFRESH = 'zbb:refresh';
 const ALARM_SEED = 'zbb:seed';
+const ALARM_UPS = 'zbb:ups';
 /** 知乎接口实测不校验 UA，但带上真实 UA 更稳妥，也便于日后排查 */
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -174,10 +176,50 @@ async function syncSeed(): Promise<HotPool> {
 }
 
 /**
+ * 同步远端 UP 库。auto 条目整批替换，本地 manual 条目保留。
+ * 拉不到就沿用旧库，不阻塞。
+ */
+async function syncUps(): Promise<UpEntry[]> {
+  const settings = await getSettings();
+  const stored = (await chrome.storage.local.get(KEYS.ups))[KEYS.ups] as
+    | { entries: UpEntry[]; updatedAt: number; error?: string }
+    | undefined;
+  const current = stored?.entries ?? [];
+  const urls = (settings.remoteUpsUrls ?? []).filter(Boolean);
+  if (urls.length === 0) return current;
+
+  const errors: string[] = [];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: { accept: 'application/json', 'user-agent': UA },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = (await res.text()).slice(0, REMOTE_MAX_BYTES);
+      const remote = parseUpsFile(text);
+      if (remote.length === 0) throw new Error('没有解析到条目');
+
+      const merged = mergeUps(current, remote);
+      await chrome.storage.local.set({
+        [KEYS.ups]: { entries: merged, updatedAt: Date.now(), error: '' },
+      });
+      return merged;
+    } catch (err) {
+      errors.push(`${shortHost(url)}: ${(err as Error).message}`);
+    }
+  }
+
+  await chrome.storage.local.set({
+    [KEYS.ups]: { entries: current, updatedAt: stored?.updatedAt ?? 0, error: errors.join(' | ') },
+  });
+  return current;
+}
+
+/**
  * 打开侧边栏。sidePanel.open() 要求用户手势，从内容脚本的消息里调用是允许的；
  * 万一被拒（老版本或策略限制），退回一个独立的小窗口，行为上等价。
- */
-async function openPanel(windowId?: number): Promise<boolean> {
+ */async function openPanel(windowId?: number): Promise<boolean> {
   try {
     if (windowId !== undefined && chrome.sidePanel?.open) {
       await chrome.sidePanel.open({ windowId });
@@ -216,6 +258,11 @@ async function ensureAlarms(): Promise<void> {
   if (!seedAlarm) {
     await chrome.alarms.create(ALARM_SEED, { delayInMinutes: 2, periodInMinutes: 24 * 60 });
   }
+
+  const upsAlarm = await chrome.alarms.get(ALARM_UPS);
+  if (!upsAlarm) {
+    await chrome.alarms.create(ALARM_UPS, { delayInMinutes: 5, periodInMinutes: 24 * 60 });
+  }
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -226,17 +273,20 @@ chrome.runtime.onInstalled.addListener(() => {
     }
   });
   void refresh().then(() => syncSeed());
+  void syncUps();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   void ensureAlarms();
   void refresh();
   void syncSeed();
+  void syncUps();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_REFRESH) void refresh();
   if (alarm.name === ALARM_SEED) void syncSeed();
+  if (alarm.name === ALARM_UPS) void syncUps();
 });
 
 chrome.runtime.onMessage.addListener(
@@ -256,6 +306,12 @@ chrome.runtime.onMessage.addListener(
   if (message?.type === 'SYNC_SEED') {
     syncSeed()
       .then((pool) => sendResponse({ ok: !pool.remote?.error, pool }))
+      .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  if (message?.type === 'SYNC_UPS') {
+    syncUps()
+      .then((entries) => sendResponse({ ok: true, entries }))
       .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;
   }
