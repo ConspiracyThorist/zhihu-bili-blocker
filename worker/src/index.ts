@@ -36,6 +36,17 @@ const CORS = {
   'access-control-max-age': '86400',
 };
 
+/** 队列最多容纳多少条待审核，防止被刷爆存储 */
+const QUEUE_MAX = 2000;
+
+/** 定长比较，避免用 !== 泄露前缀匹配长度 */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -76,6 +87,12 @@ async function submit(request: Request, env: Env): Promise<Response> {
 
   const key = `pending:${mid}`;
   const prev = (await env.UPS_QUEUE.get(key, 'json')) as PendingUp | null;
+
+  // 新条目才占额度，重复提交不额外增长
+  if (!prev) {
+    const keys = await env.UPS_QUEUE.list({ prefix: 'pending:', limit: QUEUE_MAX });
+    if (keys.keys.length >= QUEUE_MAX) return json({ ok: false, error: 'queue full' }, 503);
+  }
   const now = Date.now();
   const entry: PendingUp = prev
     ? { ...prev, lastAt: now, hits: prev.hits + 1, name: String(body.name ?? prev.name).slice(0, 40) }
@@ -88,7 +105,7 @@ async function submit(request: Request, env: Env): Promise<Response> {
 
 async function pending(request: Request, env: Env): Promise<Response> {
   const auth = request.headers.get('authorization') ?? '';
-  if (auth !== `Bearer ${env.SUBMIT_TOKEN}`) return json({ ok: false, error: 'unauthorized' }, 401);
+  if (!safeEqual(auth, `Bearer ${env.SUBMIT_TOKEN}`)) return json({ ok: false, error: 'unauthorized' }, 401);
 
   const list = await env.UPS_QUEUE.list({ prefix: 'pending:', limit: 200 });
   const items: PendingUp[] = [];
@@ -102,7 +119,7 @@ async function pending(request: Request, env: Env): Promise<Response> {
 
 async function remove(mid: string, request: Request, env: Env): Promise<Response> {
   const auth = request.headers.get('authorization') ?? '';
-  if (auth !== `Bearer ${env.SUBMIT_TOKEN}`) return json({ ok: false, error: 'unauthorized' }, 401);
+  if (!safeEqual(auth, `Bearer ${env.SUBMIT_TOKEN}`)) return json({ ok: false, error: 'unauthorized' }, 401);
   const parsed = validMid(mid);
   if (parsed === null) return json({ ok: false, error: 'bad mid' }, 400);
   await env.UPS_QUEUE.delete(`pending:${parsed}`);
