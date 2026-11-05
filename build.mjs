@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createZip } from './utils/zip.mjs';
+import { createZip } from './tools/lib/zip.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const dist = join(root, 'dist');
