@@ -20,7 +20,7 @@ import { callAcs3, ensureBucket, readCredentials, whoami } from './aliyun.mjs';
 const REGION = process.env.FC_REGION ?? 'cn-hangzhou';
 const FUNCTION_NAME = 'zbb-ups';
 const DRY = process.argv.includes('--dry-run');
-const RESULT_PATH = 'server/aliyun/deploy-result.json';
+const RESULT_PATH = '.local/deploy-result.aliyun.json';
 
 const cred = await readCredentials();
 const accountId = await whoami(cred);
