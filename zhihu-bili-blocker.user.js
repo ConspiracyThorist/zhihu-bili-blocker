@@ -21,6 +21,7 @@
 // @connect      gitee.com
 // @connect      gh-proxy.com
 // @connect      workers.dev
+// @connect      fcapp.run
 // @connect      fastly.jsdelivr.net
 // @connect      raw.githubusercontent.com
 // @license      MIT
@@ -634,7 +635,12 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
     ],
     // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
     contributeUps: true,
-    upsEndpoints: []
+    upsEndpoints: [
+      "https://zbb-ups-nwwblkigcf.cn-hangzhou.fcapp.run",
+      // 国内，主用
+      "https://zbb-ups.zbb-eaa69b.workers.dev"
+      // 境外兜底
+    ]
   };
   var MODES = [
     { id: "conservative", name: "保守", threshold: 0.86, hint: "只拦照搬" },
