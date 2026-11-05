@@ -10,7 +10,7 @@ src/extension/     扩展壳：background(取数+题库同步) / page(MAIN world
 src/userscript/    油猴壳：复用 core，换成 GM_* 适配
 server/cloudflare/ 投稿接收端（Workers + KV）
 server/aliyun/     投稿接收端（FC + OSS，国内主用）
-tools/             构建之外的脚本：题库生成/体检、UP 发现与审核、部署、仓库操作
+tools/             题库生成/体检、UP 发现与审核（CI 直接调用其中三个）
 tests/             单元测试、产物冒烟、端到端测试
 assets/icons/      图标源文件，由 scripts/make-icons.py 生成
 docs/              发布与部署文档，以及题库体检结论
@@ -170,17 +170,6 @@ jsDelivr 的 purge 接口无法清除 fastly 节点缓存（返回 `finished` �
 | `hotLen` | 当前词库条目数 |
 | `settled` | 就绪信号触发次数（大于 0 表示放行条件已满足） |
 | `fetchSrc` | `window.fetch` 是否已被接管 |
-
-## 🐙 仓库操作
-
-当前环境无法访问 `github.com`（`git push` 不可用），仅 `api.github.com` 可达，因此使用以下脚本替代 git：
-
-```bash
-node tools/gh.mjs whoami | list | get <path> | put <file> | runs | run <workflow>
-node tools/gh-sync.mjs <本地目录> [owner/repo]   # 按 blob sha 增量同步
-```
-
-Token 从环境变量 `GITHUB_TOKEN` 读取（或项目根目录下的本地凭据文件，该文件不进仓库）。
 
 ## 📄 许可证
 
