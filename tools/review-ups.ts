@@ -92,8 +92,15 @@ const VOTE_THRESHOLD = 3;
 for (const item of pending) {
   const res = await searcher.userVideos(item.mid, 50);
   if (!res.ok || res.items.length === 0) {
-    // 接口失败不删队列，下次再试
-    rejected.push({ mid: item.mid, name: item.name, why: `拿不到作品列表（code=${res.code}）` });
+    // 接口失败通常是风控，不立刻删，下次再试；
+    // 但无效 mid 会永远失败，超过 7 天就出队，避免长期占位
+    const ageDays = (Date.now() - (item.firstAt ?? Date.now())) / 86_400_000;
+    if (ageDays > 7) {
+      rejected.push({ mid: item.mid, name: item.name, why: `拿不到作品列表且已过期（code=${res.code}）` });
+      await dropPending(item.mid);
+    } else {
+      rejected.push({ mid: item.mid, name: item.name, why: `拿不到作品列表（code=${res.code}），暂留` });
+    }
     continue;
   }
 
