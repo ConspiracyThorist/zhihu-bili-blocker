@@ -1,5 +1,5 @@
 import { parseRss, pickTitles } from '../core/hotparse';
-import { mergePool, parseSeed, prunePool, replaceOrigin, type PoolEntry } from '../core/pool';
+import { mergePool, parseSeed, prunePool, replaceOrigin } from '../core/pool';
 import { mergeUps, parseUpsFile, type UpEntry } from '../core/ups';
 import {
   DEFAULT_SETTINGS,
@@ -66,25 +66,13 @@ async function getSettings(): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...(data[KEYS.settings] as Partial<Settings>) };
 }
 
-/** 兼容 v1 结构（titles: string[]）：老用户升级不用重装 */
+/** 题库只有一种存储结构 */
 async function getPool(): Promise<HotPool> {
-  const raw = (await chrome.storage.local.get(KEYS.hot))[KEYS.hot] as
-    | HotPool
-    | { titles?: string[]; updatedAt?: number; source?: string; error?: string }
-    | undefined;
-
-  if (!raw) return { entries: [], updatedAt: 0, source: 'none', error: '' };
-  if ('entries' in raw && Array.isArray((raw as HotPool).entries)) return raw as HotPool;
-
-  const legacy = raw as { titles?: string[]; updatedAt?: number; source?: string; error?: string };
-  const at = legacy.updatedAt || Date.now();
-  const entries: PoolEntry[] = (legacy.titles ?? []).map((title) => ({
-    title,
-    firstSeen: at,
-    lastSeen: at,
-    origin: 'hot' as const,
-  }));
-  return { entries, updatedAt: at, source: legacy.source ?? 'migrated', error: legacy.error ?? '' };
+  const raw = (await chrome.storage.local.get(KEYS.hot))[KEYS.hot] as HotPool | undefined;
+  if (!raw || !Array.isArray(raw.entries)) {
+    return { entries: [], updatedAt: 0, source: 'none', error: '' };
+  }
+  return raw;
 }
 
 async function savePool(pool: HotPool): Promise<void> {
