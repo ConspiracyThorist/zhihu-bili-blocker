@@ -36,13 +36,13 @@ jobs:
 
       - name: 提交 ups.json
         run: |
-          if [ ! -f ups.json ]; then
+          if [ ! -f data/ups.json ]; then
             echo "没有 ups.json，跳过"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ups.json
+          git add data/ups.json
           if git diff --cached --quiet; then
             echo "UP 库无变化"
             exit 0
