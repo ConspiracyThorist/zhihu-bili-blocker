@@ -10,8 +10,8 @@
   },
   "host_permissions": [
     "*://*.bilibili.com/*",
-    "*://*.workers.dev/*",
-    "*://*.fcapp.run/*",
+    "https://zbb-ups.zbb-eaa69b.workers.dev/*",
+    "https://zbb-ups-nwwblkigcf.cn-hangzhou.fcapp.run/*",
     "https://api.zhihu.com/*",
     "https://www.zhihu.com/*"
   ],
