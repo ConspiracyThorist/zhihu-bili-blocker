@@ -1,12 +1,27 @@
 name: discover-ups
 
-# 每周扫一遍题库，反查谁在系统性搬运，产出 ups.json。
-# 放在 CI 而不是客户端：259 条 × 1.2 秒是几分钟的量，让每个用户的浏览器都去搜一遍
-# 既慢又容易被 B 站风控。
+# 反查「谁在系统性搬运」，产出 ups.json。
+#
+# 两档节奏，共用同一份文件：
+#   每周一 03:00 UTC → 增量：只搜上次之后新增的标题，几十秒跑完，结果合并进已有条目
+#   每月 1 日 04:00 UTC → 全量：重扫整个题库，结果重建（清掉不再符合条件的）
+#
+# 放在 CI 而不是客户端：一次全量 259 条 × 1.2 秒是几分钟，
+# 让每个用户的浏览器都去搜一遍既慢又容易被 B 站风控。
 on:
   schedule:
     - cron: '0 3 * * 1'
+    - cron: '0 4 1 * *'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: '扫描模式'
+        required: true
+        default: incremental
+        type: choice
+        options:
+          - incremental
+          - full
 
 permissions:
   contents: write
@@ -18,7 +33,7 @@ concurrency:
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -30,7 +45,16 @@ jobs:
         run: npm install --ignore-scripts
 
       - name: 反查 UP 主
-        run: node tools/run-discover.mjs
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          if [ "${{ github.event.schedule }}" = "0 4 1 * *" ]; then
+            MODE=full
+          fi
+          if [ -z "$MODE" ]; then
+            MODE=incremental
+          fi
+          echo "扫描模式：$MODE"
+          node tools/run-discover.mjs "--$MODE"
 
       - name: 提交 ups.json
         run: |
