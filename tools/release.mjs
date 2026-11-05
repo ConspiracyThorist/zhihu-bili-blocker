@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-const TOKEN = (await readFile('D:\\test\\.github-token', 'utf8')).trim();
+const TOKEN = (await readFile(new URL('../.local/github-token', import.meta.url), 'utf8')).trim();
 const OWNER = 'ConspiracyThorist';
 const REPO = 'zhihu-bili-blocker';
 const VERSION = 'v1.1.0';
