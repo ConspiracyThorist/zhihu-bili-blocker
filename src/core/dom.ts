@@ -145,15 +145,14 @@ export function attachUpButton(card: Element, owner: UpOwner, onBlock: (owner: U
   if (!cover) return;
   const host = cover as HTMLElement;
 
-  // 封面没有定位时补一个，保证 absolute 的参照物就是它自己
+  // 绝不修改宿主的 position：B 站封面里还有时长、播放量等绝对定位的角标，
+  // 一旦我们把 static 改成 relative，这些角标的参照物就变了，整张卡会「错位」。
+  // 所以只在封面本身已经有定位上下文时才挂按钮，否则放弃。
   try {
     const pos = getComputedStyle(host).position;
-    if (!pos || pos === 'static') {
-      host.style.position = 'relative';
-      host.setAttribute('data-zbb-pos', '1');
-    }
+    if (!pos || pos === 'static') return;
   } catch {
-    host.style.position = 'relative';
+    return;
   }
 
   const btn = document.createElement('button');
