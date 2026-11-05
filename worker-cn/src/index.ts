@@ -15,7 +15,10 @@
  *   SUBMIT_TOKEN
  *   RATE_LIMIT（默认 20）
  */
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+/** 队列最多容纳多少条待审核，防止被刷爆 OSS */
+const QUEUE_MAX = 2000;
 
 const QUEUE_KEY = 'zbb-ups/queue.json';
 const RATE_PREFIX = 'zbb-ups/rate/';
@@ -98,6 +101,14 @@ function json(statusCode: number, body: unknown) {
   };
 }
 
+/** 定长比较，避免用 !== 泄露前缀匹配长度 */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
 function validMid(value: unknown): number | null {
   const mid = Number(value);
   if (!Number.isInteger(mid) || mid < 1000 || mid > 9_007_199_254_740_991) return null;
@@ -130,6 +141,11 @@ async function handleSubmit(bodyText: string, headers: Record<string, string>) {
   const queue = await readJson<Queue>(QUEUE_KEY, { pending: {} });
   const now = Date.now();
   const prev = queue.pending[mid];
+
+  // 新条目才占额度，重复提交不额外增长
+  if (!prev && Object.keys(queue.pending).length >= QUEUE_MAX) {
+    return json(503, { ok: false, error: 'queue full' });
+  }
   queue.pending[mid] = prev
     ? { ...prev, lastAt: now, hits: prev.hits + 1, name: String(body.name ?? prev.name).slice(0, 40) }
     : { mid, name: String(body.name ?? '').slice(0, 40), firstAt: now, lastAt: now, hits: 1 };
@@ -195,7 +211,7 @@ export const handler = async (rawEvent: any) => {
   if (path === '/submit' && method === 'POST') return handleSubmit(rawBody, headers);
 
   const auth = headers.authorization ?? '';
-  if (auth !== `Bearer ${process.env.SUBMIT_TOKEN}`) {
+  if (!safeEqual(auth, `Bearer ${process.env.SUBMIT_TOKEN}`)) {
     if (path === '/pending' || path.startsWith('/pending/')) {
       return json(401, { ok: false, error: 'unauthorized' });
     }
