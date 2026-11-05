@@ -31,7 +31,6 @@ const banner = `// ==UserScript==
 // @grant        unsafeWindow
 // @connect      api.zhihu.com
 // @connect      www.zhihu.com
-// @connect      gitee.com
 // @connect      gh-proxy.com
 // @connect      workers.dev
 // @connect      fcapp.run
