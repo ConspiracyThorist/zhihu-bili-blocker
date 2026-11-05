@@ -285,12 +285,9 @@ a:hover > [data-zbb-up],
     const host = cover;
     try {
       const pos = getComputedStyle(host).position;
-      if (!pos || pos === "static") {
-        host.style.position = "relative";
-        host.setAttribute("data-zbb-pos", "1");
-      }
+      if (!pos || pos === "static") return;
     } catch {
-      host.style.position = "relative";
+      return;
     }
     const btn = document.createElement("button");
     btn.setAttribute("data-zbb-up", "1");
