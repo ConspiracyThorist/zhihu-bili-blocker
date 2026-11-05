@@ -34,8 +34,39 @@ function addUp(mid: number, name: string): void {
   void chrome.storage.local.set({
     [KEYS.ups]: { entries: ups, updatedAt: Date.now(), error: '' },
   });
+  // 匿名贡献：只发 mid 和名字，不带任何用户标识
+  try {
+    chrome.runtime.sendMessage({ type: 'SUBMIT_UP', mid, name });
+  } catch {
+    /* 扩展上下文失效时忽略，本地屏蔽已经生效 */
+  }
+  showContributeNotice();
   postState();
   widget?.refresh();
+}
+
+/** 首次贡献时提示一次，之后不再打扰 */
+function showContributeNotice(): void {
+  const KEY = 'zbb:contribute-notice';
+  try {
+    if (localStorage.getItem(KEY)) return;
+    localStorage.setItem(KEY, '1');
+  } catch {
+    return;
+  }
+  if (!settings.contributeUps) return;
+
+  const tip = document.createElement('div');
+  tip.textContent = '已匿名提交到公共 UP 库（仅上传 UP 编号，可在扩展设置里关闭）';
+  tip.style.cssText = [
+    'position:fixed', 'left:50%', 'bottom:64px', 'transform:translateX(-50%)',
+    'z-index:2147483641', 'padding:8px 14px', 'border-radius:999px',
+    'background:rgba(20,22,27,.92)', 'color:#e8eaed', 'font:12px/1.5',
+    '-apple-system,"Segoe UI","Microsoft YaHei",sans-serif',
+    'border:1px solid rgba(255,255,255,.16)', 'pointer-events:none',
+  ].join(';');
+  document.body?.appendChild(tip);
+  window.setTimeout(() => tip.remove(), 5200);
 }
 
 /** 池子按新鲜度切两段：老条目在匹配时要更高的分数 */
