@@ -12,6 +12,13 @@ import {
 const ALARM_REFRESH = 'zbb:refresh';
 const ALARM_SEED = 'zbb:seed';
 const ALARM_UPS = 'zbb:ups';
+const ALARM_OUTBOX = 'zbb:outbox';
+
+interface OutboxItem {
+  mid: number;
+  name: string;
+  at: number;
+}
 /** 知乎接口实测不校验 UA，但带上真实 UA 更稳妥，也便于日后排查 */
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -175,6 +182,53 @@ async function syncSeed(): Promise<HotPool> {
   return next;
 }
 
+
+/**
+ * 投稿队列：用户拉黑 UP 时先入队，再尽力发出。
+ * 断网/接不到服务端就留着，下次启动或定时任务补发——不打扰用户。
+ */
+async function flushOutbox(): Promise<number> {
+  const settings = await getSettings();
+  const endpoint = (settings.upsEndpoint ?? '').trim().replace(/\/$/, '');
+  if (!settings.contributeUps || !endpoint) return 0;
+
+  const stored = (await chrome.storage.local.get(KEYS.outbox))[KEYS.outbox] as OutboxItem[] | undefined;
+  const queue = stored ?? [];
+  if (queue.length === 0) return 0;
+
+  const left: OutboxItem[] = [];
+  let sent = 0;
+  for (const item of queue) {
+    try {
+      const res = await fetch(`${endpoint}/submit`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mid: item.mid, name: item.name }),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      sent += 1;
+    } catch {
+      left.push(item);
+    }
+  }
+  await chrome.storage.local.set({ [KEYS.outbox]: left });
+  return sent;
+}
+
+async function enqueueUp(mid: number, name: string): Promise<boolean> {
+  const settings = await getSettings();
+  if (!settings.contributeUps) return false;
+  const stored = (await chrome.storage.local.get(KEYS.outbox))[KEYS.outbox] as OutboxItem[] | undefined;
+  const queue = stored ?? [];
+  if (!queue.some((x) => x.mid === mid)) {
+    queue.push({ mid, name, at: Date.now() });
+  }
+  await chrome.storage.local.set({ [KEYS.outbox]: queue.slice(-200) });
+  void flushOutbox();
+  return true;
+}
+
 /**
  * 同步远端 UP 库。auto 条目整批替换，本地 manual 条目保留。
  * 拉不到就沿用旧库，不阻塞。
@@ -263,6 +317,11 @@ async function ensureAlarms(): Promise<void> {
   if (!upsAlarm) {
     await chrome.alarms.create(ALARM_UPS, { delayInMinutes: 5, periodInMinutes: 24 * 60 });
   }
+
+  const outboxAlarm = await chrome.alarms.get(ALARM_OUTBOX);
+  if (!outboxAlarm) {
+    await chrome.alarms.create(ALARM_OUTBOX, { delayInMinutes: 10, periodInMinutes: 24 * 60 });
+  }
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -274,6 +333,7 @@ chrome.runtime.onInstalled.addListener(() => {
   });
   void refresh().then(() => syncSeed());
   void syncUps();
+  void flushOutbox();
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -287,6 +347,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_REFRESH) void refresh();
   if (alarm.name === ALARM_SEED) void syncSeed();
   if (alarm.name === ALARM_UPS) void syncUps();
+  if (alarm.name === ALARM_OUTBOX) void flushOutbox();
 });
 
 chrome.runtime.onMessage.addListener(
@@ -307,6 +368,13 @@ chrome.runtime.onMessage.addListener(
     syncSeed()
       .then((pool) => sendResponse({ ok: !pool.remote?.error, pool }))
       .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  if (message?.type === 'SUBMIT_UP') {
+    const payload = message as { mid?: number; name?: string };
+    enqueueUp(Number(payload.mid), String(payload.name ?? ''))
+      .then((ok) => sendResponse({ ok }))
+      .catch(() => sendResponse({ ok: false }));
     return true;
   }
   if (message?.type === 'SYNC_UPS') {
