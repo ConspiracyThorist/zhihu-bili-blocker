@@ -104,17 +104,16 @@ function validMid(value: unknown): number | null {
   return mid;
 }
 
-function clientIp(event: any): string {
-  const headers = event.headers ?? {};
+function clientIp(headers: Record<string, string>): string {
   return (
     headers['x-forwarded-for']?.split(',')[0]?.trim() || headers['x-real-ip'] || 'unknown'
   );
 }
 
-async function handleSubmit(event: any) {
+async function handleSubmit(bodyText: string, headers: Record<string, string>) {
   let body: any;
   try {
-    body = JSON.parse(event.body ?? '{}');
+    body = JSON.parse(bodyText || '{}');
   } catch {
     return json(400, { ok: false, error: 'bad json' });
   }
@@ -123,7 +122,7 @@ async function handleSubmit(event: any) {
   if (mid === null) return json(400, { ok: false, error: 'bad mid' });
 
   const limit = Number(process.env.RATE_LIMIT ?? '20');
-  const rateKey = `${RATE_PREFIX}${new Date().toISOString().slice(0, 10)}/${clientIp(event)}.json`;
+  const rateKey = `${RATE_PREFIX}${new Date().toISOString().slice(0, 10)}/${clientIp(headers)}.json`;
   const used = (await readJson<{ n: number }>(rateKey, { n: 0 })).n;
   if (used >= limit) return json(429, { ok: false, error: 'rate limited' });
   await writeJson(rateKey, { n: used + 1 });
@@ -139,15 +138,63 @@ async function handleSubmit(event: any) {
   return json(200, { ok: true });
 }
 
-export const handler = async (event: any) => {
-  const method = event.httpMethod ?? event.requestContext?.http?.method ?? 'GET';
-  const path = event.path ?? event.requestContext?.http?.path ?? '/';
+/**
+ * FC 3.0 的 HTTP 触发器会把**原始 HTTP 报文**塞进 event（Buffer），
+ * 不是结构化对象——得自己切请求行、头部和 body。
+ * 同时兼容结构化事件（v1: httpMethod/path，v2: requestContext.http）。
+ */
+function parseRawHttp(buf: Buffer): { method: string; path: string; headers: Record<string, string>; body: string } {
+  const text = buf.toString('utf8');
+  const split = text.indexOf('\r\n\r\n');
+  const head = split >= 0 ? text.slice(0, split) : text;
+  const body = split >= 0 ? text.slice(split + 4) : '';
+  const lines = head.split('\r\n');
+  const [requestLine = '', ...headerLines] = lines;
+  const parts = requestLine.split(' ');
+  const method = (parts[0] ?? 'GET').toUpperCase();
+  const path = parts[1] ?? '/';
+
+  const headers: Record<string, string> = {};
+  for (const line of headerLines) {
+    const i = line.indexOf(':');
+    if (i > 0) headers[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();
+  }
+  return { method, path, headers, body };
+}
+
+function normalize(event: any): { method: string; path: string; headers: Record<string, string>; body: string } {
+  let e: any = event;
+
+  // FC 3.0 实测给的是 JSON 字符串（{"VERSION":"V1","RAWPATH":...}）；
+  // 少数配置下是裸 HTTP 报文，或已经是对象——三种都接住。
+  if (Buffer.isBuffer(e)) e = e.toString('utf8');
+  if (typeof e === 'string') {
+    try {
+      e = JSON.parse(e);
+    } catch {
+      return parseRawHttp(Buffer.from(e, 'utf8'));
+    }
+  }
+
+  const headers: Record<string, string> = {};
+  for (const [k, v] of Object.entries(e?.headers ?? {})) headers[k.toLowerCase()] = String(v);
+
+  let body = e?.body ?? '';
+  if (e?.isBase64Encoded && body) body = Buffer.from(String(body), 'base64').toString('utf8');
+
+  const method = String(e?.httpMethod ?? e?.requestContext?.http?.method ?? 'GET').toUpperCase();
+  const path = e?.rawPath ?? e?.path ?? e?.requestContext?.http?.path ?? '/';
+  return { method, path, headers, body: String(body) };
+}
+
+export const handler = async (rawEvent: any) => {
+  const { method, path, headers, body: rawBody } = normalize(rawEvent);
 
   if (method === 'OPTIONS') return json(204, null);
 
-  if (path === '/submit' && method === 'POST') return handleSubmit(event);
+  if (path === '/submit' && method === 'POST') return handleSubmit(rawBody, headers);
 
-  const auth = event.headers?.authorization ?? '';
+  const auth = headers.authorization ?? '';
   if (auth !== `Bearer ${process.env.SUBMIT_TOKEN}`) {
     if (path === '/pending' || path.startsWith('/pending/')) {
       return json(401, { ok: false, error: 'unauthorized' });
