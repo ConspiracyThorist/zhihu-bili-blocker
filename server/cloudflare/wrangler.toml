@@ -1,0 +1,12 @@
+name = "zbb-ups"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+# KV 命名空间：存待审核队列与每 IP 的每日计数
+[[kv_namespaces]]
+binding = "UPS_QUEUE"
+id = "REPLACE_WITH_KV_ID"
+
+# 用 `wrangler secret put SUBMIT_TOKEN` 设置，不要写在文件里
+# [vars]
+# RATE_LIMIT = "20"
