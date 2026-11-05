@@ -273,7 +273,7 @@ async function main(): Promise<void> {
 
   console.log(`\n整体命中率 ${pct(s.rate)}（${s.hitTitles}/${s.total}）`);
   for (const g of groups) console.log(`  ${g.source.padEnd(8)} ${g.s.hitTitles}/${g.s.total} (${pct(g.s.rate)})`);
-  console.log('报告：reports/pool-audit.md');
+  console.log('报告：docs/pool-audit.md');
 }
 
 main().catch((err) => {
