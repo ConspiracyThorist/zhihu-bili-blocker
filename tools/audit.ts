@@ -5,7 +5,7 @@
  * 不等于实际拦截率——首页推荐未必推它。报告里会写明这个区别。
  *
  * 用法（由 run-audit.mjs 打包后执行）：
- *   node dist/tools/audit.mjs --seed seed.txt --limit 0 --sample 12
+ *   node dist/tools/audit.mjs --seed data/seed.txt --limit 0 --sample 12
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -23,7 +23,7 @@ const arg = (name: string, fallback: string | number): string => {
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : String(fallback);
 };
 
-const seedPath = arg('seed', join(root, 'seed.txt'));
+const seedPath = arg('seed', join(root, 'data', 'seed.txt'));
 const limit = Number(arg('limit', 0));
 const sample = Number(arg('sample', 12));
 
