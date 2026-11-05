@@ -70,7 +70,10 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
   contributeUps: true,
-  upsEndpoints: [],
+  upsEndpoints: [
+    'https://zbb-ups-nwwblkigcf.cn-hangzhou.fcapp.run', // 国内，主用
+    'https://zbb-ups.zbb-eaa69b.workers.dev', // 境外兜底
+  ],
 };
 
 export interface RemoteMeta {
