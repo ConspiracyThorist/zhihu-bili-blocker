@@ -16,9 +16,9 @@ export async function readCredentials() {
   const ak = (process.env.ALIYUN_AK ?? '').trim();
   const sk = (process.env.ALIYUN_SK ?? '').trim();
   if (ak && sk) return { ak, sk };
-  const raw = await readFile('D:\\test\\.aliyun-ak', 'utf8');
+  const raw = await readFile(new URL('../.local/aliyun-ak', import.meta.url), 'utf8');
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (lines.length < 2) throw new Error('.aliyun-ak 需要两行：AccessKeyId / AccessKeySecret');
+  if (lines.length < 2) throw new Error('.local/aliyun-ak 需要两行：AccessKeyId / AccessKeySecret');
   return { ak: lines[0], sk: lines[1] };
 }
 
