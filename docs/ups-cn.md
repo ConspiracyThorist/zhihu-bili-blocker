@@ -77,7 +77,7 @@ curl https://xxx.cn-hangzhou.fcapp.run/pending \
 
 | 方法 | 路径 | 鉴权 | 说明 |
 | --- | --- | --- | --- |
-| POST | `/submit` | 无 | 入队，同 IP 每日 20 次 |
+| POST | `/submit` | 无 | 入队，同 IP 每日 20 次 + 全局每小时 500 次 |
 | GET | `/pending` | Bearer | 列出待审核 |
 | DELETE | `/pending/:mid` | Bearer | 出队 |
 
