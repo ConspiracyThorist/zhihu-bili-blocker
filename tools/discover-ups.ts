@@ -23,7 +23,7 @@ import { qualifies } from '../src/core/ups';
 import { DEFAULT_SETTINGS, MODES, type Settings } from '../src/core/types';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const UPS_PATH = join(root, 'ups.json');
+const UPS_PATH = join(root, 'data', 'ups.json');
 /** 命中定义用「标准」档，比默认的保守宽松一点：反查 UP 需要更多样本才稳 */
 const STANDARD = MODES.find((m) => m.id === 'standard')!;
 const MATCHER: Settings = { ...DEFAULT_SETTINGS, threshold: STANDARD.threshold };
@@ -49,7 +49,7 @@ async function readExisting(): Promise<UpsFile | null> {
   }
 }
 
-const seed = await readFile(join(root, 'seed.txt'), 'utf8');
+const seed = await readFile(join(root, 'data', 'seed.txt'), 'utf8');
 const titles = [...new Set(
   seed
     .split(/\r?\n/)
