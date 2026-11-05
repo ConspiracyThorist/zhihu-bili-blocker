@@ -282,7 +282,10 @@ a:hover > [data-zbb-up],
       '.bili-video-card__cover, [class*="bili-video-card__cover"], .bili-cover, [class*="cover"], .pic'
     );
     if (!cover) return;
-    const host = cover;
+    if (/skeleton/i.test(String(cover.className))) return;
+    const box = cover;
+    if (box.clientWidth < 40 || box.clientHeight < 40) return;
+    const host = box;
     try {
       const pos = getComputedStyle(host).position;
       if (!pos || pos === "static") return;
