@@ -2,7 +2,7 @@
 // @name         知乎热榜屏蔽B站推荐
 // @name:en      Zhihu Hot List Blocker for Bilibili
 // @namespace    zhihu-bili-blocker
-// @version      1.1.0
+// @version      1.1.1
 // @description  把知乎热榜当过滤字典，在 B 站首页推荐里按标题模糊匹配，命中就在渲染前摘掉搬运视频
 // @description:en  Block Bilibili home feed videos that copy Zhihu hot-list questions, matched by title before render
 // @author       ConspiracyThorist
@@ -732,6 +732,7 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
 .adv-value { color: #e8eaed; font-variant-numeric: tabular-nums; }
 .adv-range { width: 100%; accent-color: #fb7299; }
 .adv-info { color: #8b929e; font-size: 11px; }
+.adv-toggle { accent-color: #fb7299; cursor: pointer; }
 .adv-input {
   width: 100%; padding: 5px 7px; border-radius: 6px;
   border: 1px solid rgba(255,255,255,.12); background: #14161a;
@@ -921,6 +922,22 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
         info.className = "adv-info";
         info.textContent = cfg.getPoolInfo();
         body.append(info);
+      }
+      if (cfg.getContribute && cfg.onContribute) {
+        const row = document.createElement("div");
+        row.className = "adv-row";
+        const label2 = document.createElement("span");
+        label2.textContent = "匿名贡献 UP";
+        const toggle = document.createElement("input");
+        toggle.type = "checkbox";
+        toggle.className = "adv-toggle";
+        toggle.checked = cfg.getContribute();
+        toggle.title = "手动屏蔽 UP 时把 UP 编号提交到公共库审核，可随时关闭";
+        toggle.addEventListener("change", () => {
+          cfg.onContribute?.(toggle.checked);
+        });
+        row.append(label2, toggle);
+        body.append(row);
       }
       if (cfg.getSeedUrl || cfg.onSyncSeed) {
         const input = document.createElement("input");
@@ -1398,6 +1415,11 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
           state.settings = { ...state.settings, remoteSeedUrls: url ? [url] : [] };
           saveSettings();
           void syncSeed(true);
+        },
+        getContribute: () => state.settings.contributeUps,
+        onContribute: (value) => {
+          state.settings = { ...state.settings, contributeUps: value };
+          saveSettings();
         },
         onRefresh: () => void refreshHot(true),
         onSyncSeed: () => void syncSeed(true)
