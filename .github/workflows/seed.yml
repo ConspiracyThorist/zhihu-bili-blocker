@@ -27,7 +27,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add seed.txt
+          git add data/seed.txt
           if git diff --cached --quiet; then
             echo "没有变化，跳过"
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -41,4 +41,5 @@ jobs:
         if: steps.commit.outputs.changed == 'true'
         run: |
           # @main 默认缓存 7 天，不刷的话用户一周后才看到新题
-          curl -fsS "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/seed.txt" || true
+          curl -fsS "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/data/seed.txt" || true
+
