@@ -2,7 +2,7 @@
 // @name         知乎热榜屏蔽B站推荐
 // @name:en      Zhihu Hot List Blocker for Bilibili
 // @namespace    zhihu-bili-blocker
-// @version      1.1.1
+// @version      1.1.0
 // @description  把知乎热榜当过滤字典，在 B 站首页推荐里按标题模糊匹配，命中就在渲染前摘掉搬运视频
 // @description:en  Block Bilibili home feed videos that copy Zhihu hot-list questions, matched by title before render
 // @author       ConspiracyThorist
