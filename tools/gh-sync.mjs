@@ -20,6 +20,7 @@ const EXCLUDE_DIRS = new Set([
   '.npm-cache',
   '.dsh-office',
   'screenshots',
+  '.local',
 ]);
 // ups.json 由 CI 生成并直接提交，本地跑测试产生的版本不能覆盖它
 const EXCLUDE_FILES = new Set([
@@ -43,7 +44,7 @@ if (!localRoot) {
 
 const token = (
   process.env.GITHUB_TOKEN ??
-  (await readFile('D:\\test\\.github-token', 'utf8').catch(() => ''))
+  (await readFile(new URL('../.local/github-token', import.meta.url), 'utf8').catch(() => ''))
 ).trim();
 if (!token) {
   console.error('找不到 token');
