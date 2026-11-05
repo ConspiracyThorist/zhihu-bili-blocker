@@ -1,6 +1,6 @@
 {
   "name": "zhihu-bili-blocker",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "同步知乎热榜，标题模糊匹配后在渲染前屏蔽 B 站首页推荐里的搬运视频（Chrome MV3 扩展 + 油猴脚本，共用一套匹配内核）",
   "type": "module",
