@@ -71,6 +71,23 @@ function blockedMids(): Set<number> {
   return new Set(state.ups.entries.map((entry) => entry.mid));
 }
 
+/** 匿名提交到公共 UP 库；失败不影响本地屏蔽 */
+function submitUp(mid: number, name: string): void {
+  if (!state.settings.contributeUps) return;
+  const endpoint = (state.settings.upsEndpoint ?? '').trim().replace(/\/$/, '');
+  if (!endpoint) return;
+  GM_xmlhttpRequest({
+    method: 'POST',
+    url: `${endpoint}/submit`,
+    timeout: 12_000,
+    headers: { 'content-type': 'application/json' },
+    data: JSON.stringify({ mid, name }),
+    onload: () => {},
+    onerror: () => {},
+    ontimeout: () => {},
+  });
+}
+
 function addUp(mid: number, name: string): void {
   if (state.ups.entries.some((entry) => entry.mid === mid)) return;
   state.ups = {
@@ -78,6 +95,7 @@ function addUp(mid: number, name: string): void {
     updatedAt: Date.now(),
   };
   writeJson(KEYS.ups, state.ups);
+  submitUp(mid, name);
   widget?.refresh();
 }
 
