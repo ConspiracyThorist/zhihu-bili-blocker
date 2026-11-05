@@ -44,6 +44,7 @@ interface UpsEntry {
   hits?: number;
   total?: number;
   rate?: number;
+  votes?: number;
   samples?: string[];
   source?: string;
 }
@@ -82,6 +83,11 @@ console.log(`待审核 ${pending.length} 个 UP，题库 ${pool.length} 条`);
 const searcher = await createSearcher({ intervalMs: 1200 });
 const accepted: UpsEntry[] = [];
 const rejected: { mid: number; name: string; why: string }[] = [];
+const kept: { mid: number; name: string; votes: number }[] = [];
+/** 票数不足的条目最多留这么久，到期清掉 */
+const KEEP_MS = 30 * 24 * 3600 * 1000;
+/** 攒够这些票，命中 1 条就算数 */
+const VOTE_THRESHOLD = 3;
 
 for (const item of pending) {
   const res = await searcher.userVideos(item.mid, 50);
@@ -101,9 +107,20 @@ for (const item of pending) {
   }
   const total = res.items.length;
 
-  if (!qualifies(hits, total)) {
-    rejected.push({ mid: item.mid, name: item.name, why: `${hits}/${total} 未达门槛` });
-    await dropPending(item.mid);
+  const votes = item.hits ?? 1;
+  // 双门槛：整号搬运；或多人举报（≥3 票）且至少命中 1 条
+  const byRate = qualifies(hits, total);
+  const byVotes = votes >= VOTE_THRESHOLD && hits >= 1;
+  const expired = Date.now() - (item.firstAt ?? Date.now()) > KEEP_MS;
+
+  if (!byRate && !byVotes) {
+    if (expired) {
+      rejected.push({ mid: item.mid, name: item.name, why: `${hits}/${total} 未达标且已过期，出队` });
+      await dropPending(item.mid);
+    } else {
+      // 票不够就先留着，让更多人举报后累积
+      kept.push({ mid: item.mid, name: item.name, votes });
+    }
     continue;
   }
 
@@ -113,14 +130,16 @@ for (const item of pending) {
     hits,
     total,
     rate: Math.round((hits / total) * 100) / 100,
+    votes,
     samples,
     source: 'auto',
   });
   await dropPending(item.mid);
-  console.log(`  ✓ ${item.name}（${item.mid}）${hits}/${total}`);
+  console.log(`  ✓ ${item.name}（${item.mid}）${hits}/${total}，${votes} 票`);
 }
 
 for (const r of rejected) console.log(`  ✗ ${r.name}（${r.mid}）${r.why}`);
+for (const k of kept) console.log(`  … ${k.name}（${k.mid}）${k.votes} 票，暂留待累积`);
 
 if (accepted.length === 0) {
   console.log('本轮没有新 UP 入选，ups.json 不变');
