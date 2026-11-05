@@ -3,6 +3,8 @@ import type { MatchResult } from './types';
 export interface PruneHooks {
   match: (title: string) => MatchResult;
   onHit: (title: string, result: MatchResult) => void;
+  /** UP 库命中：返回 true 则整条移除，不再走标题匹配 */
+  shouldDrop?: (item: unknown) => boolean;
 }
 
 /** B 站 feed 卡片一定带的字段，用来避免误剪评论区之类的无关数组 */
@@ -32,6 +34,11 @@ export function pruneFeed(root: unknown, hooks: PruneHooks): number {
       for (let i = node.length - 1; i >= 0; i -= 1) {
         const el = node[i];
         if (looksLikeCard(el)) {
+          if (hooks.shouldDrop?.(el)) {
+            node.splice(i, 1);
+            removed += 1;
+            continue;
+          }
           const result = hooks.match(el.title);
           if (result.hit) {
             hooks.onHit(el.title, result);
