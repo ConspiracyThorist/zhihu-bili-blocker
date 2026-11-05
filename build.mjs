@@ -9,7 +9,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const dist = join(root, 'dist');
 const extDir = join(dist, 'extension');
 
-const VERSION = '1.1.0';
+const VERSION = '0.0.3';
 
 const banner = `// ==UserScript==
 // @name         知乎热榜屏蔽B站推荐
