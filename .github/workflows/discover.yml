@@ -1,0 +1,49 @@
+name: discover-ups
+
+# 每周扫一遍题库，反查谁在系统性搬运，产出 ups.json。
+# 放在 CI 而不是客户端：259 条 × 1.2 秒是几分钟的量，让每个用户的浏览器都去搜一遍
+# 既慢又容易被 B 站风控。
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: discover-ups
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 安装依赖
+        run: npm install --ignore-scripts
+
+      - name: 反查 UP 主
+        run: node tools/run-discover.mjs
+
+      - name: 提交 ups.json
+        run: |
+          if [ ! -f ups.json ]; then
+            echo "没有生成 ups.json，跳过"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ups.json
+          if git diff --cached --quiet; then
+            echo "UP 库无变化"
+            exit 0
+          fi
+          git commit -m "chore: 更新 UP 库（$(date -u +%Y-%m-%d)）"
+          git push
