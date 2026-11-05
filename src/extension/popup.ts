@@ -107,7 +107,7 @@ function renderPool(): void {
   } else if (remote?.error) {
     seedMeta.textContent = '同步失败';
   } else {
-    seedMeta.textContent = settings.remoteSeedUrls.length ? '尚未同步' : '未启用';
+    seedMeta.textContent = '尚未同步';
   }
 
   const message = [pool?.error, remote?.error].filter(Boolean).join(' | ');
