@@ -14,13 +14,13 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
-import { createZip } from '../utils/zip.mjs';
+import { createZip } from './lib/zip.mjs';
 import { callAcs3, ensureBucket, readCredentials, whoami } from './aliyun.mjs';
 
 const REGION = process.env.FC_REGION ?? 'cn-hangzhou';
 const FUNCTION_NAME = 'zbb-ups';
 const DRY = process.argv.includes('--dry-run');
-const RESULT_PATH = 'worker-cn/deploy-result.json';
+const RESULT_PATH = 'server/aliyun/deploy-result.json';
 
 const cred = await readCredentials();
 const accountId = await whoami(cred);
@@ -57,19 +57,19 @@ function esbuildBinary() {
   return bin;
 }
 
-await mkdir('dist/worker-cn', { recursive: true });
+await mkdir('dist/server-aliyun', { recursive: true });
 execFileSync(esbuildBinary(), [
-  'worker-cn/src/index.ts',
+  'server/aliyun/src/index.ts',
   '--bundle', '--platform=node', '--target=node20', '--format=cjs',
   '--charset=utf8', '--log-level=warning',
-  '--outfile=dist/worker-cn/index.js',
+  '--outfile=dist/server-aliyun/index.js',
 ], { stdio: 'inherit' });
-console.log('✓ 编译 worker-cn/src/index.ts');
+console.log('✓ 编译 server/aliyun/src/index.ts');
 
 const stage = 'dist/fc-stage';
 await rm(stage, { recursive: true, force: true });
 await mkdir(stage, { recursive: true });
-await writeFile(join(stage, 'index.js'), await readFile('dist/worker-cn/index.js'));
+await writeFile(join(stage, 'index.js'), await readFile('dist/server-aliyun/index.js'));
 const zipPath = 'dist/fc-stage.zip';
 const { size } = await createZip(stage, zipPath);
 const zipFile = (await readFile(zipPath)).toString('base64');
@@ -172,7 +172,7 @@ const config = got.body?.triggerConfig
   : {};
 const url = got.body?.httpTrigger?.urlInternet ?? config.urlInternet ?? '';
 
-await mkdir('worker-cn', { recursive: true });
+await mkdir('server/aliyun', { recursive: true });
 await writeFile(
   RESULT_PATH,
   `${JSON.stringify({ endpoint: url, token: secret, accountId, bucket, region: REGION, deployedAt: new Date().toISOString() }, null, 2)}\n`,
