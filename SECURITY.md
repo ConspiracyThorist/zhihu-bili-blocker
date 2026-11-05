@@ -61,7 +61,10 @@ CORS 为 `*`：端点是公开的，扩展需要从任意页面调用；安全�
 ## 历史事件
 
 - **2026-11-05**：`server/cloudflare/deploy-result.json` 曾误提交到公开仓库，内含 Cloudflare 的 CI 口令。
-  已删除、已将口令轮换作废、已加入同步与 git 忽略列表。旧口令在 commit 历史里仍可见，但已失效。
+  已删除、已加入同步与 git 忽略列表。该口令随后被轮换两次（2026-11-05），commit 历史里的旧值不可用。
+
+- **2026-11-05**：两个后端的 CI 口令全部轮换，GitHub Secret `UPS_TOKEN` 同步更新。
+  轮换工具：`tools/rotate-token.mjs`。
 
 ## 本地敏感文件
 
