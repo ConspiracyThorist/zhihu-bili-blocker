@@ -215,7 +215,9 @@ async function flushOutbox(): Promise<number> {
 
 async function enqueueUp(mid: number, name: string): Promise<boolean> {
   const settings = await getSettings();
-  if (!settings.contributeUps) return false;
+  const endpoints = (settings.upsEndpoints ?? []).map((u) => u.trim()).filter(Boolean);
+  // 没配端点就别入队：否则 outbox 只会越积越多，永远发不出去
+  if (!settings.contributeUps || endpoints.length === 0) return false;
   const stored = (await chrome.storage.local.get(KEYS.outbox))[KEYS.outbox] as OutboxItem[] | undefined;
   const queue = stored ?? [];
   if (!queue.some((x) => x.mid === mid)) {
