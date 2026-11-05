@@ -140,11 +140,6 @@ https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-b
 
 欢迎提交 Issue 与 Pull Request。修改代码前建议先阅读 [DEVELOP.md](DEVELOP.md) 了解架构与测试方式。
 
-## 🙏 致谢
-
-- 匹配阈值与三档数值来自 259 条题库的实测数据，结论见 [docs/pool-audit.md](docs/pool-audit.md)
-- 项目在 AI 编程助手 [DeepSeek](https://www.deepseek.com) 协助下完成：核心逻辑实现、测试套件、安全审查与文档撰写
-
 ## 📄 许可证
 
 [MIT](LICENSE)
