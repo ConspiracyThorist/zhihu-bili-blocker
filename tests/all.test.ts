@@ -4,6 +4,7 @@ import { installFeedHook } from '../src/core/hook';
 import { normalize } from '../src/core/normalize';
 import { mergePool, parseSeed, prunePool, replaceOrigin, splitByFreshness } from '../src/core/pool';
 import { pruneFeed } from '../src/core/pruner';
+import { mergeUps, parseUpsFile, qualifies } from '../src/core/ups';
 import { DEFAULT_SETTINGS, type Settings } from '../src/core/types';
 import { isFeedUrl } from '../src/core/urlFilter';
 
@@ -254,6 +255,66 @@ function testStaleThreshold(): void {
   );
 }
 
+function testUps(): void {
+  // 双门槛：命中数 ≥2 且命中率 ≥30%
+  ok(qualifies(2, 5), 'UP 库：2/5 入选');
+  ok(qualifies(3, 10), 'UP 库：3/10 入选（正好 30%）');
+  ok(!qualifies(2, 10), 'UP 库：2/10 落选（命中率不足）');
+  ok(!qualifies(1, 2), 'UP 库：1/2 落选（命中数不足）');
+  ok(!qualifies(0, 0), 'UP 库：空样本落选');
+
+  // 脏数据一律丢弃，不抛错
+  eq(parseUpsFile('not json').length, 0, 'UP 库：非 JSON 返回空');
+  const parsed = parseUpsFile(JSON.stringify({
+    generatedAt: '2026-11-05',
+    threshold: 0.78,
+    entries: [
+      { mid: 123, name: 'A' },
+      { mid: 0, name: 'B' },
+      { mid: 'x', name: 'C' },
+      { name: 'D' },
+    ],
+  }));
+  eq(parsed.length, 1, 'UP 库：只保留合法 mid');
+  eq(parsed[0].source, 'auto', 'UP 库：远端条目标记为 auto');
+
+  // 合并规则：手动条目优先，远端整批替换 auto
+  const merged = mergeUps(
+    [
+      { mid: 1, name: '手动', source: 'manual' as const },
+      { mid: 2, name: '旧自动', source: 'auto' as const },
+      { mid: 3, name: '手动同号', source: 'manual' as const },
+    ],
+    [
+      { mid: 2, name: '新自动', source: 'auto' as const },
+      { mid: 3, name: '远端同号', source: 'auto' as const },
+    ],
+  );
+  eq(merged.length, 3, 'UP 库：合并后不重复');
+  eq(merged.find((e) => e.mid === 1)?.source, 'manual', 'UP 库：手动条目保留');
+  eq(merged.find((e) => e.mid === 2)?.name, '新自动', 'UP 库：auto 条目被远端整批替换');
+  eq(merged.find((e) => e.mid === 3)?.name, '手动同号', 'UP 库：同 mid 时手动优先');
+}
+
+function testPrunerUp(): void {
+  const feed = {
+    data: {
+      item: [
+        { bvid: 'BV1', title: '正常视频', owner: { mid: 42 } },
+        { bvid: 'BV2', title: '另一个正常视频', owner: { mid: 7 } },
+      ],
+    },
+  };
+  const removed = pruneFeed(feed, {
+    match: () => ({ hit: false, zhihuTitle: '', score: 0, reason: 'none' }) as never,
+    onHit: () => {},
+    shouldDrop: (item) => Number((item as { owner?: { mid?: number } }).owner?.mid) === 42,
+  });
+  eq(removed, 1, 'UP 库：命中 mid 的卡片被摘掉');
+  eq(feed.data.item.length, 1, 'UP 库：未命中的卡片保留');
+  eq(feed.data.item[0].owner.mid, 7, 'UP 库：留下的是另一个 UP');
+}
+
 export async function run(): Promise<{ passed: number; failures: string[] }> {
   testNormalize();
   testDice();
@@ -262,6 +323,8 @@ export async function run(): Promise<{ passed: number; failures: string[] }> {
   testUrlFilter();
   testPool();
   testStaleThreshold();
+  testUps();
+  testPrunerUp();
   await testHook();
   return { passed, failures };
 }
