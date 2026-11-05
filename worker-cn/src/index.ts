@@ -33,8 +33,11 @@ interface PendingUp {
 
 interface Queue {
   pending: Record<string, PendingUp>;
-  /** 每日计数：date -> ip -> 次数。只保留最近两天 */
-  rates?: Record<string, Record<string, number>>;
+  /** 计数：hours 走全局小时额度，days 走每 IP 日额度 */
+  rates?: {
+    hours?: Record<string, number>;
+    days?: Record<string, Record<string, number>>;
+  };
 }
 
 function bucketHost(): string {
@@ -135,27 +138,38 @@ async function handleSubmit(bodyText: string, headers: Record<string, string>) {
   if (mid === null) return json(400, { ok: false, error: 'bad mid' });
 
   const limit = Number(process.env.RATE_LIMIT ?? '20');
-  const globalLimit = Number(process.env.GLOBAL_RATE_LIMIT ?? '3000');
+  const hourlyLimit = Number(process.env.HOURLY_LIMIT ?? '500');
 
   const queue = await readJson<Queue>(QUEUE_KEY, { pending: {} });
-  const today = new Date().toISOString().slice(0, 10);
+  const iso = new Date().toISOString();
+  const today = iso.slice(0, 10);
+  const thisHour = iso.slice(0, 13);
   const rates = queue.rates ?? {};
+  rates.hours = rates.hours ?? {};
+  rates.days = rates.days ?? {};
 
-  // 只留最近两天，其余随写入顺手清掉
-  for (const day of Object.keys(rates)) {
-    if (day !== today && Date.now() - Date.parse(day) > 2 * 86_400_000) delete rates[day];
+  // 只留最近 3 小时、最近 2 天，顺手清掉旧的
+  const cutoffHour = new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 13);
+  for (const hour of Object.keys(rates.hours)) {
+    if (hour < cutoffHour) delete rates.hours[hour];
+  }
+  for (const day of Object.keys(rates.days)) {
+    if (day !== today && Date.now() - Date.parse(day) > 2 * 86_400_000) delete rates.days[day];
   }
 
-  const dayRates = rates[today] ?? {};
-  const dayTotal = Object.values(dayRates).reduce((a, b) => a + b, 0);
-  // 全局限额：IP 可以伪造，总量伪造不了
-  if (dayTotal >= globalLimit) return json(503, { ok: false, error: 'daily quota exhausted' });
+  // 小时额度：IP 可伪造，总量伪造不了
+  const hourUsed = rates.hours[thisHour] ?? 0;
+  if (hourUsed >= hourlyLimit) {
+    return json(503, { ok: false, error: 'hourly quota exhausted', retryAfter: 3600 });
+  }
 
+  const dayRates = rates.days[today] ?? {};
   const ip = clientIp(headers);
   if ((dayRates[ip] ?? 0) >= limit) return json(429, { ok: false, error: 'rate limited' });
 
   dayRates[ip] = (dayRates[ip] ?? 0) + 1;
-  rates[today] = dayRates;
+  rates.days[today] = dayRates;
+  rates.hours[thisHour] = hourUsed + 1;
   queue.rates = rates;
   const now = Date.now();
   const prev = queue.pending[mid];
