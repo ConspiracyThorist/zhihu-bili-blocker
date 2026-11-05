@@ -1,0 +1,51 @@
+name: up-review
+
+# 审核用户投稿：从 Worker 队列取 mid，拉该 UP 的投稿，
+# 用和自动发现同一套 matchTitle + 双门槛判定，达标才并入 ups.json。
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: up-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 安装依赖
+        run: npm install --ignore-scripts
+
+      - name: 审核投稿
+        env:
+          UPS_ENDPOINT: ${{ secrets.UPS_ENDPOINT }}
+          UPS_TOKEN: ${{ secrets.UPS_TOKEN }}
+        run: node tools/run-review.mjs
+
+      - name: 提交 ups.json
+        run: |
+          if [ ! -f ups.json ]; then
+            echo "没有 ups.json，跳过"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ups.json
+          if git diff --cached --quiet; then
+            echo "UP 库无变化"
+            exit 0
+          fi
+          git commit -m "chore: 并入投稿 UP（$(date -u +%Y-%m-%d %H:%M））"
+          git push
