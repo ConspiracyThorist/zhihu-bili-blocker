@@ -45,7 +45,7 @@ function feedBody() {
     data: {
       item: [
         { id: 1, bvid: 'BV1', goto: 'av', title: '【搬运】如何看待「AI 取代程序员」的说法？' },
-        { id: 2, bvid: 'BV2', goto: 'av', title: '【原神】4.2 版本全角色配队思路' },
+        { id: 2, bvid: 'BV2', goto: 'av', title: '【原神】4.2 版本全角色配队思路', owner: { mid: 7001, name: '搬运UP' } },
         { id: 3, bvid: 'BV3', goto: 'av', title: '四千元冰柜被「仅退款」，商家跨千里发现商品仍在使用' },
       ],
     },
@@ -57,7 +57,7 @@ const PAGE = `<!doctype html>
 <body>
   <div id="cards">
     <div class="bili-video-card"><h3 class="bili-video-card__info--tit">【搬运】如何看待「AI 取代程序员」的说法？</h3></div>
-    <div class="bili-video-card"><h3 class="bili-video-card__info--tit">【原神】4.2 版本全角色配队思路</h3></div>
+    <div class="bili-video-card"><h3 class="bili-video-card__info--tit">【原神】4.2 版本全角色配队思路</h3><a href="https://space.bilibili.com/7001"><span class="bili-video-card__info--author">搬运UP</span></a></div>
     <div class="cell"><div class="bili-video-card"><h3 class="bili-video-card__info--tit">四千元冰柜被「仅退款」，商家跨千里发现商品仍在使用</h3></div></div>
   </div>
   <script>
@@ -128,7 +128,10 @@ async function evaluate(cdp, expression) {
     returnByValue: true,
     awaitPromise: true,
   });
-  if (result.exceptionDetails) throw new Error(result.exceptionDetails.text || 'evaluate 失败');
+  if (result.exceptionDetails) {
+    const detail = result.exceptionDetails;
+    throw new Error(detail.exception?.description || detail.text || 'evaluate 失败');
+  }
   return result.result.value;
 }
 
@@ -238,7 +241,7 @@ async function main() {
     const sw = await waitFor(
       async () => {
         const list = await httpJson(`http://127.0.0.1:${DEBUG_PORT}/json/list`).catch(() => []);
-        return list.find((t) => t.type === 'service_worker' && t.url.includes('background.js')) ?? null;
+        return list.find((t) => t.type === 'service_worker' && t.url.includes(loaded.id)) ?? null;
       },
       25_000,
       '扩展 service worker',
@@ -247,7 +250,11 @@ async function main() {
 
     const swCdp = await connect(sw.webSocketDebuggerUrl, (msg) => {
       void installRoute(() => swCdpRef)(msg);
+      if (msg.method === 'Runtime.exceptionThrown') {
+        console.log('  [sw exception]', JSON.stringify(msg.params.exceptionDetails).slice(0, 400));
+      }
     });
+    await swCdp.send('Runtime.enable');
     let swCdpRef = null;
     swCdpRef = swCdp;
     // Service Worker 自己也要发请求（远端种子），所以拦截器必须挂到它身上
@@ -476,6 +483,51 @@ async function main() {
     check(popup.hot?.includes('条'), 'popup：题库条数已渲染', popup.hot);
     check(popup.threshold === '0.72', 'popup：阈值渲染为 0.72', popup.threshold);
     check(popup.toggle === true, 'popup：总开关与存储一致');
+
+    // ---- UP 库 ----
+    const upBtn = await evaluate(
+      pageCdp,
+      `(function () {
+        const btn = document.querySelector('[data-zbb-up]');
+        return btn ? btn.textContent : '';
+      })()`,
+    );
+    check(String(upBtn).includes('屏蔽此 UP'), 'UP 库：卡片上出现「屏蔽此 UP」按钮', String(upBtn));
+
+    // 加进 UP 库之前：标题匹配掉 2 条，只剩原神那条
+    const beforeUp = await evaluate(
+      pageCdp,
+      `(async () => {
+        const r = await fetch('/x/web-interface/wbi/index/top/feed/rcmd?w_rid=t&wts=8');
+        const j = await r.json();
+        return String(j.data.item.length);
+      })()`,
+    );
+    check(Number(beforeUp) === 1, 'UP 库：加库之前剩 1 条（标题匹配结果）', String(beforeUp));
+
+    await evaluate(
+      swCdp,
+      `(async () => {
+        const cur = await chrome.storage.local.get('zbb:ups');
+        const entries = (cur['zbb:ups'] && cur['zbb:ups'].entries) || [];
+        await chrome.storage.local.set({ 'zbb:ups': { entries: entries.concat([{ mid: 7001, name: '搬运UP', source: 'manual', addedAt: Date.now() }]), updatedAt: Date.now(), error: '' } });
+        return 'ok';
+      })()`,
+    );
+    await sleep(800);
+
+    const afterUp = await evaluate(
+      pageCdp,
+      `(async () => {
+        const r = await fetch('/x/web-interface/wbi/index/top/feed/rcmd?w_rid=t&wts=9');
+        const j = await r.json();
+        return JSON.stringify({ count: j.data.item.length, mids: j.data.item.map(function (i) { return i.owner && i.owner.mid; }) });
+      })()`,
+    );
+    const upResult = JSON.parse(afterUp || '{}');
+    check(upResult.count === 0, 'UP 库：命中 mid 后最后一条也被摘掉', String(afterUp));
+    check(!String(upResult.mids).includes('7001'), 'UP 库：留下的 feed 不含被屏蔽的 UP');
+
     check(popup.records === 2, 'popup：命中记录渲染 2 条', String(popup.records));
 
     // ---- 5) 远端题库同步 ----
