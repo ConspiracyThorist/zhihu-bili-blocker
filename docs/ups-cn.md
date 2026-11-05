@@ -40,7 +40,7 @@ D:\test\.aliyun-ak
 有了 AK/SK，我会：
 
 1. 建 OSS Bucket（就近地域，如 `oss-cn-hangzhou`），私有读
-2. 打包 `worker-cn/src/index.ts`（含 ali-oss 依赖）
+2. 打包 `server/aliyun/src/index.ts`（含 ali-oss 依赖）
 3. 创建 FC 3.0 函数（Node.js 20，通过 HTTP 触发器暴露）
 4. 写入环境变量：`OSS_*`、`SUBMIT_TOKEN`（随机生成）
 5. 拿到公网地址，做一次冒烟测试
@@ -54,7 +54,7 @@ D:\test\.aliyun-ak
 <details>
 
 1. OSS 建 Bucket，记下地域和名字
-2. FC 控制台 → 创建函数 → 运行环境 `Node.js 20` → 上传代码（`worker-cn` 目录打 zip，含 `node_modules`）
+2. FC 控制台 → 创建函数 → 运行环境 `Node.js 20` → 上传代码（`server/aliyun` 目录打 zip，含 `node_modules`）
 3. 函数配置 → 环境变量：
    - `OSS_REGION`、`OSS_BUCKET`、`OSS_AK`、`OSS_SK`
    - `SUBMIT_TOKEN`：随便生成一个 32 字节十六进制串
