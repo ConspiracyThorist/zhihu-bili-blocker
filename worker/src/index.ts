@@ -80,10 +80,18 @@ async function submit(request: Request, env: Env): Promise<Response> {
   // 频率限制：同一个 IP 每天有限额，防止有人刷队列
   const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
   const limit = Number(env.RATE_LIMIT ?? '20');
+  const globalLimit = Number(env.GLOBAL_RATE_LIMIT ?? '3000');
+
+  // 全局限额先挡一刀：IP 可以伪造，总量伪造不了
+  const totalKey = `rate-total:${dayKey()}`;
+  const totalUsed = Number((await env.UPS_QUEUE.get(totalKey)) ?? '0');
+  if (totalUsed >= globalLimit) return json({ ok: false, error: 'daily quota exhausted' }, 503);
+
   const rateKey = `rate:${dayKey()}:${ip}`;
   const used = Number((await env.UPS_QUEUE.get(rateKey)) ?? '0');
   if (used >= limit) return json({ ok: false, error: 'rate limited' }, 429);
   await env.UPS_QUEUE.put(rateKey, String(used + 1), { expirationTtl: 172800 });
+  await env.UPS_QUEUE.put(totalKey, String(totalUsed + 1), { expirationTtl: 172800 });
 
   const key = `pending:${mid}`;
   const prev = (await env.UPS_QUEUE.get(key, 'json')) as PendingUp | null;
