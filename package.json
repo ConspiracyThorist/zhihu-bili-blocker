@@ -16,9 +16,7 @@
   "devDependencies": {
     "@types/chrome": "^0.3.7",
     "esbuild": "^0.25.0",
+    "libsodium-wrappers": "^0.8.4",
     "typescript": "^5.6.0"
-  },
-  "dependencies": {
-    "libsodium-wrappers": "^0.8.4"
   }
 }
