@@ -20,6 +20,7 @@
 // @connect      www.zhihu.com
 // @connect      gitee.com
 // @connect      gh-proxy.com
+// @connect      workers.dev
 // @connect      fastly.jsdelivr.net
 // @connect      raw.githubusercontent.com
 // @license      MIT
@@ -630,7 +631,10 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
     remoteUpsUrls: [
       "https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/ups.json",
       "https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/ups.json"
-    ]
+    ],
+    // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
+    contributeUps: true,
+    upsEndpoint: ""
   };
   var MODES = [
     { id: "conservative", name: "保守", threshold: 0.86, hint: "只拦照搬" },
@@ -645,7 +649,8 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
     hot: "zbb:hot",
     records: "zbb:records",
     stats: "zbb:stats",
-    ups: "zbb:ups"
+    ups: "zbb:ups",
+    outbox: "zbb:outbox"
   };
   var RECORD_LIMIT = 50;
 
@@ -1104,6 +1109,24 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
     if (!state.settings.upBlockEnabled) return /* @__PURE__ */ new Set();
     return new Set(state.ups.entries.map((entry) => entry.mid));
   }
+  function submitUp(mid, name) {
+    if (!state.settings.contributeUps) return;
+    const endpoint = (state.settings.upsEndpoint ?? "").trim().replace(/\/$/, "");
+    if (!endpoint) return;
+    GM_xmlhttpRequest({
+      method: "POST",
+      url: `${endpoint}/submit`,
+      timeout: 12e3,
+      headers: { "content-type": "application/json" },
+      data: JSON.stringify({ mid, name }),
+      onload: () => {
+      },
+      onerror: () => {
+      },
+      ontimeout: () => {
+      }
+    });
+  }
   function addUp(mid, name) {
     if (state.ups.entries.some((entry) => entry.mid === mid)) return;
     state.ups = {
@@ -1111,6 +1134,7 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
       updatedAt: Date.now()
     };
     writeJson(KEYS.ups, state.ups);
+    submitUp(mid, name);
     widget?.refresh();
   }
   var sessionHits = 0;
