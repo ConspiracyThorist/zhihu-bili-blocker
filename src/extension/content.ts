@@ -90,6 +90,7 @@ function postState(): void {
           titles: fresh.map((entry) => entry.raw),
           staleTitles: stale.map((entry) => entry.raw),
           blockedUps: settings.upBlockEnabled ? ups.map((entry) => entry.mid) : [],
+          loaded: true,
         },
       },
       '*',
@@ -188,6 +189,8 @@ const scanner = startScanner({
   settings: () => settings,
   hot: () => [...fresh, ...stale],
   onCard: (card) => {
+    // 已经挂过按钮的卡片直接跳过，避免每轮扫描重复做 DOM 查询
+    if (card.querySelector('[data-zbb-up]')) return false;
     const owner = cardOwner(card);
     if (!owner) return false;
     // UP 库命中：整张卡片藏掉，不再走标题匹配
