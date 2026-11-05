@@ -80,6 +80,21 @@ npm run e2e                    # 31 项浏览器端到端测试
 
 页面上的「屏蔽此 UP」按钮由 `core/dom.ts` 的 `attachUpButton` 注入，扩展与油猴共用。
 
+### 投稿链路
+
+用户手动拉黑时，除了写本地库，还会进一条匿名投稿：
+
+1. 扩展把 `{mid, name}` 写进 `zbb:outbox`（断网也不丢，下次启动或定时任务补发）
+2. 发到 Cloudflare Worker（`worker/src/index.ts`）入队，同 IP 每天限 20 次
+3. CI 每 6 小时（`up-review.yml`）拉队列，用 `userVideos(mid)` 拿该 UP 最近 50 条投稿，
+   逐条与题库匹配，算命中率
+4. 命中 ≥2 且命中率 ≥30% 才并入 `ups.json`，否则丢弃并出队
+
+判定标准与自动发现完全一致，只是样本从「按标题搜得到的视频」换成「这个 UP 自己的作品」，
+后者更直接，而且每个 UP 只花 1 次请求。
+
+部署步骤见 [docs/ups-worker.md](docs/ups-worker.md)。`upsEndpoint` 留空时整条链路静默降级。
+
 ### 判定规则
 
 | 级别 | 条件 | 适用场景 |
