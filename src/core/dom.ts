@@ -111,7 +111,10 @@ function ensureUpStyle(doc: Document): void {
   /* 只让自己可点，不挡住卡片的其它交互 */
   pointer-events: auto; contain: layout style;
 }
-a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacity: 1; }
+.bili-video-card:hover [data-zbb-up],
+.feed-card:hover [data-zbb-up],
+a:hover > [data-zbb-up],
+[data-zbb-up]:hover { opacity: 1; }
 [data-zbb-up]:hover { border-color: #fb7299; color: #fb7299; }
 `;
   const root = doc.head ?? doc.documentElement;
@@ -119,30 +122,59 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
   root.appendChild(style);
 }
 
-/** 往卡片右上角挂一个「屏蔽此 UP」按钮，宿主决定点击后干什么 */
+/**
+ * 挂「屏蔽此 UP」按钮。
+ *
+ * 定位不要依赖卡片根节点：B 站（以及 AdGuard 之类的插件）会往卡片里塞各种包裹层，
+ * 根节点的定位上下文经常不是我们以为的那个，按钮就会飘到别处。
+ * 优先挂到封面元素上——它自带定位、且正好是鼠标悬停区域。
+ */
 export function attachUpButton(card: Element, owner: UpOwner, onBlock: (owner: UpOwner) => void): void {
   if (card.querySelector('[data-zbb-up]')) return;
+
+  // 卡片还没渲染出内容（比如被广告拦截插件替换成占位符）时不要挂
+  if (!card.textContent || card.textContent.trim().length < 2) return;
+
   ensureUpStyle(card.ownerDocument ?? document);
-  // 卡片本身没定位时补一个 relative，否则绝对定位会跑到外层容器上
-  const cardEl = card as HTMLElement;
-  if (typeof getComputedStyle === 'function') {
-    const pos = getComputedStyle(cardEl).position;
+
+  const cover = card.querySelector(
+    '.bili-video-card__cover, [class*="bili-video-card__cover"], .bili-cover, [class*="cover"], .pic',
+  );
+  // 找不到封面就不挂：退回卡片根节点时定位上下文经常不对，
+  // 按钮会飘到页面左上角。宁可这个位置没有按钮，也不要错位。
+  if (!cover) return;
+  const host = cover as HTMLElement;
+
+  // 封面没有定位时补一个，保证 absolute 的参照物就是它自己
+  try {
+    const pos = getComputedStyle(host).position;
     if (!pos || pos === 'static') {
-      cardEl.style.position = 'relative';
-      cardEl.setAttribute('data-zbb-pos', '1');
+      host.style.position = 'relative';
+      host.setAttribute('data-zbb-pos', '1');
     }
+  } catch {
+    host.style.position = 'relative';
   }
 
   const btn = document.createElement('button');
   btn.setAttribute('data-zbb-up', '1');
   btn.textContent = '屏蔽此 UP';
   btn.title = `把 ${owner.name || owner.mid} 加入 UP 库，此后其视频不再出现在首页`;
-  btn.addEventListener('click', (event) => {
+
+  // 按下与点击都就地拦下：既避免触发卡片自身的「稍后观看」，
+  // 也避免其它脚本挂的委托监听收到我们按钮的事件
+  const swallow = (event: Event): void => {
     event.preventDefault();
     event.stopPropagation();
+  };
+  btn.addEventListener('pointerdown', swallow);
+  btn.addEventListener('mousedown', swallow);
+  btn.addEventListener('click', (event) => {
+    swallow(event);
     onBlock(owner);
   });
-  card.appendChild(btn);
+
+  host.appendChild(btn);
 }
 
 export interface Scanner {
