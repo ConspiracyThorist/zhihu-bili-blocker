@@ -4,14 +4,15 @@ dist/
 .test-tmp/
 .dsh-office-*
 
-# 体检工具的中间产物
-seed.meta.json
+# 体检与调参的生成物（结论保留在 docs/）
+reports/
 
 # 部署产物（含口令），不进仓库
-worker/deploy-result.json
+server/cloudflare/deploy-result.json
+server/aliyun/deploy-result.json
 
-# 截图只是本地预览，不进仓库
-reports/screenshots/
+# 体检工具的中间产物
+seed.meta.json
 
 # 系统文件
 .DS_Store
