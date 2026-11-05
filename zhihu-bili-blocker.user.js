@@ -18,7 +18,6 @@
 // @grant        unsafeWindow
 // @connect      api.zhihu.com
 // @connect      www.zhihu.com
-// @connect      gitee.com
 // @connect      gh-proxy.com
 // @connect      workers.dev
 // @connect      fcapp.run
@@ -1150,13 +1149,7 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
   var widget = null;
   function poolEntries() {
     const raw = state.pool;
-    if (!raw) return [];
-    if (Array.isArray(raw.entries)) return raw.entries;
-    if (Array.isArray(raw.titles)) {
-      const at = raw.updatedAt || Date.now();
-      return raw.titles.map((title) => ({ title, firstSeen: at, lastSeen: at, origin: "hot" }));
-    }
-    return [];
+    return Array.isArray(raw?.entries) ? raw.entries : [];
   }
   function rebuild() {
     const split = splitByFreshness(poolEntries(), Date.now(), 7);
