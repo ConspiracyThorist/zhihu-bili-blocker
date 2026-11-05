@@ -34,6 +34,7 @@ const banner = `// ==UserScript==
 // @connect      gitee.com
 // @connect      gh-proxy.com
 // @connect      workers.dev
+// @connect      fcapp.run
 // @connect      fastly.jsdelivr.net
 // @connect      raw.githubusercontent.com
 // @license      MIT
