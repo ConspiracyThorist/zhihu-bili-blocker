@@ -27,7 +27,13 @@ const accountId = await whoami(cred);
 console.log(`✓ 账号 ${accountId}，Region ${REGION}`);
 
 const bucket = `zbb-ups-${accountId}`.toLowerCase();
-const secret = randomBytes(32).toString('hex');
+let secret = '';
+try {
+  secret = (JSON.parse(await readFile(RESULT_PATH, 'utf8')).token ?? '').trim();
+} catch {
+  secret = '';
+}
+if (!secret) secret = randomBytes(32).toString('hex');
 
 if (DRY) {
   console.log(`--dry-run：将使用 Bucket ${bucket}、函数 ${FUNCTION_NAME}`);
