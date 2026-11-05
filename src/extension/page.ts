@@ -27,7 +27,7 @@ function settle(): void {
 }
 
 // 兜底：等不到列表就放行——宁可漏，也不能让首页卡住
-const timeout = window.setTimeout(settle, 1500);
+const timeout = window.setTimeout(settle, 800);
 
 const debug = { total: 0, sourceMismatch: 0, sourceNull: 0, badNs: 0, accepted: 0, hotLen: 0, feedSeen: 0, settled: 0 };
 (window as unknown as Record<string, unknown>).__zbbDebug = debug;
@@ -59,9 +59,9 @@ window.addEventListener('message', (event: MessageEvent) => {
   ];
   debug.hotLen = state.hot.length;
 
-  // 关键：content 可能先回一个空列表（它还没读完 storage）。
-  // 空列表不算"就绪"，否则 hook 会拿着空字典把首屏请求原样放行。
-  if (state.hot.length > 0) settle();
+  // content 明确说「已读完 storage」就算就绪：哪怕题库是空的，
+  // 也不该让首屏 feed 白白等超时（那会拖慢预览图加载）。
+  if (state.hot.length > 0 || (payload as { loaded?: boolean }).loaded === true) settle();
 });
 
 installFeedHook({
