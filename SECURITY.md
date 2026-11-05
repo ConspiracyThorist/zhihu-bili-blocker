@@ -60,7 +60,7 @@ CORS 为 `*`：端点是公开的，扩展需要从任意页面调用；安全�
 
 ## 历史事件
 
-- **2026-11-05**：`worker/deploy-result.json` 曾误提交到公开仓库，内含 Cloudflare 的 CI 口令。
+- **2026-11-05**：`server/cloudflare/deploy-result.json` 曾误提交到公开仓库，内含 Cloudflare 的 CI 口令。
   已删除、已将口令轮换作废、已加入同步与 git 忽略列表。旧口令在 commit 历史里仍可见，但已失效。
 
 ## 本地敏感文件
@@ -71,6 +71,6 @@ CORS 为 `*`：端点是公开的，扩展需要从任意页面调用；安全�
 D:\test\.github-token             GitHub PAT
 D:\test\.cf-token                 Cloudflare API Token
 D:\test\.aliyun-ak                阿里云 AK/SK
-worker/deploy-result.json         Cloudflare 部署结果 + 口令
-worker-cn/deploy-result.json      阿里云部署结果 + 口令
+server/cloudflare/deploy-result.json         Cloudflare 部署结果 + 口令
+server/aliyun/deploy-result.json      阿里云部署结果 + 口令
 ```
