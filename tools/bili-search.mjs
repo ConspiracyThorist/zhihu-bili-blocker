@@ -120,6 +120,7 @@ export async function createSearcher({ intervalMs = 1200 } = {}) {
         bvid: r.bvid,
         title: stripHtml(r.title),
         author: r.author,
+        mid: Number(r.mid ?? r.author_mid ?? 0) || undefined,
         play: r.play,
         pubdate: r.pubdate,
       })),
