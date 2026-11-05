@@ -11,7 +11,6 @@ src/userscript/    油猴壳：复用 core，换成 GM_* 适配
 server/cloudflare/ 投稿接收端（Workers + KV）
 server/aliyun/     投稿接收端（FC + OSS，国内主用）
 tools/             题库生成/体检、UP 发现与审核（CI 直接调用其中三个）
-tests/             单元测试、产物冒烟、端到端测试
 assets/icons/      图标源文件，由 scripts/make-icons.py 生成
 docs/              发布与部署文档，以及题库体检结论
 data/seed.txt      题库种子，由 GitHub Actions 每日刷新
@@ -25,10 +24,7 @@ data/ups.json      UP 库，由 CI 生成并提交
 ```bash
 npm install --ignore-scripts   # esbuild 原生二进制随 @esbuild/win32-x64 分发，可跳过安装脚本
 npm run typecheck              # TypeScript 严格模式检查
-npm test                       # 44 条单元测试
 npm run build                  # 生成 dist/extension、zip 与 user.js
-npm run smoke                  # 直接执行打包产物，验证桥接与剪枝
-npm run e2e                    # 31 项浏览器端到端测试
 ```
 
 ### 构建说明
