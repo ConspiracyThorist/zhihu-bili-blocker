@@ -42,8 +42,8 @@ export interface Settings {
   remoteUpsUrls: string[];
   /** 手动屏蔽 UP 时是否匿名贡献到公共库 */
   contributeUps: boolean;
-  /** 投稿接收端地址（Cloudflare Worker），留空则不上报 */
-  upsEndpoint: string;
+  /** 投稿接收端，按序尝试；第一个不通就走下一个（国内云函数优先，境外 Worker 兜底） */
+  upsEndpoints: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -70,7 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
   contributeUps: true,
-  upsEndpoint: '',
+  upsEndpoints: [],
 };
 
 export interface RemoteMeta {
