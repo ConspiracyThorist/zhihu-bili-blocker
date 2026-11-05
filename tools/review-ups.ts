@@ -19,7 +19,7 @@ import { qualifies } from '../src/core/ups';
 import { DEFAULT_SETTINGS, MODES, type Settings } from '../src/core/types';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const UPS_PATH = join(root, 'ups.json');
+const UPS_PATH = join(root, 'data', 'ups.json');
 const ENDPOINT = (process.env.UPS_ENDPOINT ?? '').trim().replace(/\/$/, '');
 const TOKEN = (process.env.UPS_TOKEN ?? '').trim();
 const STANDARD = MODES.find((m) => m.id === 'standard')!;
@@ -70,7 +70,7 @@ async function dropPending(mid: number): Promise<void> {
   await fetch(`${ENDPOINT}/pending/${mid}`, { method: 'DELETE', headers: auth });
 }
 
-const seed = await readFile(join(root, 'seed.txt'), 'utf8');
+const seed = await readFile(join(root, 'data', 'seed.txt'), 'utf8');
 const titles = seed
   .split(/\r?\n/)
   .map((l) => l.trim())
