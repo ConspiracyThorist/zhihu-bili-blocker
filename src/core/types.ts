@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // raw.githubusercontent 在国内多数网络访问不了，所以走两个镜像：
   //   gh-proxy 无缓存、能立刻拿到最新；jsDelivr 边缘缓存 12h，胜在稳定
   remoteSeedUrls: [
-    'https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/seed.txt',
+    'https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/data/seed.txt',
     'https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/seed.txt',
   ],
   poolDays: 30,
@@ -65,7 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rsshub: '',
   upBlockEnabled: true,
   remoteUpsUrls: [
-    'https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/ups.json',
+    'https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/data/ups.json',
     'https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/ups.json',
   ],
   // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
