@@ -126,7 +126,13 @@ await call('PUT', `/accounts/${account.id}/workers/scripts/${SCRIPT_NAME}`, form
 console.log(`✓ 上传 Worker ${SCRIPT_NAME}`);
 
 // ---- 5. 密钥 ----
-const secret = randomBytes(32).toString('hex');
+let secret = '';
+try {
+  secret = (JSON.parse(await readFile(join(root, 'worker', 'deploy-result.json'), 'utf8')).token ?? '').trim();
+} catch {
+  secret = '';
+}
+if (!secret) secret = randomBytes(32).toString('hex');
 await call(
   'PUT',
   `/accounts/${account.id}/workers/scripts/${SCRIPT_NAME}/secrets`,
