@@ -1,6 +1,7 @@
-import { startScanner } from '../core/dom';
+import { attachUpButton, cardOwner, hideCard, startScanner } from '../core/dom';
 import { prepareHot, type HotEntry } from '../core/engine';
 import { splitByFreshness, type PoolEntry } from '../core/pool';
+import { type UpEntry } from '../core/ups';
 import { mountWidget } from '../core/widget';
 import {
   DEFAULT_SETTINGS,
@@ -25,6 +26,17 @@ let sessionHits = 0;
 let flushTimer = 0;
 let loaded = false;
 let widget: ReturnType<typeof mountWidget> | null = null;
+let ups: UpEntry[] = [];
+
+function addUp(mid: number, name: string): void {
+  if (ups.some((u) => u.mid === mid)) return;
+  ups = [...ups, { mid, name, source: 'manual', addedAt: Date.now() }];
+  void chrome.storage.local.set({
+    [KEYS.ups]: { entries: ups, updatedAt: Date.now(), error: '' },
+  });
+  postState();
+  widget?.refresh();
+}
 
 /** 池子按新鲜度切两段：老条目在匹配时要更高的分数 */
 function rebuild(entries: PoolEntry[]): void {
@@ -46,6 +58,7 @@ function postState(): void {
           whitelist: settings.whitelist,
           titles: fresh.map((entry) => entry.raw),
           staleTitles: stale.map((entry) => entry.raw),
+          blockedUps: settings.upBlockEnabled ? ups.map((entry) => entry.mid) : [],
         },
       },
       '*',
@@ -103,12 +116,14 @@ async function load(): Promise<void> {
     [KEYS.hot]: null,
     [KEYS.records]: [],
     [KEYS.stats]: { total: 0 },
+    [KEYS.ups]: null,
   });
 
   settings = { ...DEFAULT_SETTINGS, ...(data[KEYS.settings] as Partial<Settings>) };
   rebuild(entriesOf(data[KEYS.hot]));
   records = (data[KEYS.records] as HitRecord[]) ?? [];
   statsTotal = (data[KEYS.stats] as Stats | undefined)?.total ?? 0;
+  ups = (data[KEYS.ups] as { entries?: UpEntry[] } | null)?.entries ?? [];
   loaded = true;
   postState();
 }
@@ -124,6 +139,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
   if (changes[KEYS.records]) {
     records = (changes[KEYS.records].newValue as HitRecord[]) ?? records;
+  }
+  if (changes[KEYS.ups]) {
+    ups = (changes[KEYS.ups].newValue as { entries?: UpEntry[] } | null)?.entries ?? [];
+    postState();
   }
 });
 
@@ -142,6 +161,20 @@ window.addEventListener('message', (event: MessageEvent) => {
 const scanner = startScanner({
   settings: () => settings,
   hot: () => [...fresh, ...stale],
+  onCard: (card) => {
+    const owner = cardOwner(card);
+    if (!owner) return false;
+    // UP 库命中：整张卡片藏掉，不再走标题匹配
+    if (settings.upBlockEnabled && ups.some((entry) => entry.mid === owner.mid)) {
+      hideCard(card);
+      return true;
+    }
+    attachUpButton(card, owner, (o) => {
+      addUp(o.mid, o.name);
+      hideCard(card);
+    });
+    return false;
+  },
   onHit: (biliTitle, result) => {
     pushRecord({
       biliTitle,
