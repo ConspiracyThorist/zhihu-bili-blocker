@@ -399,6 +399,11 @@ function mountUi(): void {
         saveSettings();
         void syncSeed(true);
       },
+      getContribute: () => state.settings.contributeUps,
+      onContribute: (value) => {
+        state.settings = { ...state.settings, contributeUps: value };
+        saveSettings();
+      },
       onRefresh: () => void refreshHot(true),
       onSyncSeed: () => void syncSeed(true),
     },
