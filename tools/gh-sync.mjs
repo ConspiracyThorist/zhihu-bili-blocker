@@ -21,7 +21,8 @@ const EXCLUDE_DIRS = new Set([
   '.dsh-office',
   'screenshots',
 ]);
-const EXCLUDE_FILES = new Set(['seed.meta.json', '.DS_Store', 'Thumbs.db']);
+// ups.json 由 CI 生成并直接提交，本地跑测试产生的版本不能覆盖它
+const EXCLUDE_FILES = new Set(['seed.meta.json', 'ups.json', '.DS_Store', 'Thumbs.db']);
 
 const args = process.argv.slice(2);
 const localRoot = args[0];
