@@ -113,7 +113,19 @@ if (stats.size === 0 && existing?.entries.length) {
   process.exit(0);
 }
 
-if (!FULL && existing) {
+// 同样的道理：全量重建时若结果明显少于现有库，说明这一轮没扫全，
+// 直接重建等于把已验证的条目删掉。改成合并，宁多勿少。
+const degraded =
+  FULL &&
+  !!existing?.entries.length &&
+  discovered.length < existing.entries.length * 0.6;
+if (degraded) {
+  console.warn(
+    `⚠️ 全量只发现 ${discovered.length} 个，明显少于现有 ${existing!.entries.length} 个，本轮改为合并而不是重建`,
+  );
+}
+
+if ((!FULL || degraded) && existing) {
   const byMid = new Map(existing.entries.map((e) => [e.mid, { ...e }]));
   for (const add of discovered) {
     const prev = byMid.get(add.mid);
