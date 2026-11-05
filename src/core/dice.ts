@@ -4,9 +4,14 @@
  * 为什么不用 Levenshtein：中文短标题上一个字的改动（"的"→""、语序微调）
  * 会让编辑距离显得很大，而 bigram 对"局部改写"更宽容，对"整体无关"仍然敏感。
  * 搬运视频的典型改动是加前缀后缀、换说法，正是 bigram 的强项。
+ *
+ * 性能注意：hot 条目要参与成千上万次比较，bigram 必须预先算好。
+ * 所以这里把「建表」和「算分」拆开，匹配时只建一次查询侧的表。
  */
-function bigrams(s: string): Map<string, number> {
-  const map = new Map<string, number>();
+export type GramMap = Map<string, number>;
+
+export function bigramMap(s: string): GramMap {
+  const map: GramMap = new Map();
   if (s.length < 2) {
     if (s.length === 1) map.set(s, 1);
     return map;
@@ -18,23 +23,45 @@ function bigrams(s: string): Map<string, number> {
   return map;
 }
 
+/** 表里 bigram 的总数（含重复），等于 len-1（长度≥2 时） */
+export function gramTotal(map: GramMap): number {
+  let total = 0;
+  for (const n of map.values()) total += n;
+  return total;
+}
+
+export function diceFromMaps(a: GramMap, aTotal: number, b: GramMap, bTotal: number): number {
+  if (aTotal === 0 || bTotal === 0) return 0;
+  let overlap = 0;
+  // 遍历小的一侧，减少查找次数
+  const [small, big] = a.size <= b.size ? [a, b] : [b, a];
+  for (const [g, n] of small) {
+    const m = big.get(g);
+    if (m) overlap += Math.min(n, m);
+  }
+  return (2 * overlap) / (aTotal + bTotal);
+}
+
+export function coverageFromMaps(a: GramMap, aTotal: number, b: GramMap, bTotal: number): number {
+  const denominator = Math.min(aTotal, bTotal);
+  if (denominator === 0) return 0;
+  let overlap = 0;
+  const [small, big] = a.size <= b.size ? [a, b] : [b, a];
+  for (const [g, n] of small) {
+    const m = big.get(g);
+    if (m) overlap += Math.min(n, m);
+  }
+  return overlap / denominator;
+}
+
 /** 返回 0~1；a === b 且非空时为 1 */
 export function diceCoefficient(a: string, b: string): number {
   if (!a || !b) return 0;
   if (a === b) return 1;
   if (a.length < 2 || b.length < 2) return 0;
-  const left = bigrams(a);
-  const right = bigrams(b);
-  let overlap = 0;
-  let total = 0;
-  for (const [g, n] of left) {
-    total += n;
-    const m = right.get(g);
-    if (m) overlap += Math.min(n, m);
-  }
-  for (const n of right.values()) total += n;
-  if (total === 0) return 0;
-  return (2 * overlap) / total;
+  const left = bigramMap(a);
+  const right = bigramMap(b);
+  return diceFromMaps(left, gramTotal(left), right, gramTotal(right));
 }
 
 /**
@@ -47,18 +74,7 @@ export function diceCoefficient(a: string, b: string): number {
 export function bigramCoverage(a: string, b: string): number {
   if (!a || !b) return 0;
   if (a === b) return 1;
-  const left = bigrams(a);
-  const right = bigrams(b);
-  let overlap = 0;
-  let totalA = 0;
-  let totalB = 0;
-  for (const [g, n] of left) {
-    totalA += n;
-    const m = right.get(g);
-    if (m) overlap += Math.min(n, m);
-  }
-  for (const n of right.values()) totalB += n;
-  const denominator = Math.min(totalA, totalB);
-  if (denominator === 0) return 0;
-  return overlap / denominator;
+  const left = bigramMap(a);
+  const right = bigramMap(b);
+  return coverageFromMaps(left, gramTotal(left), right, gramTotal(right));
 }
