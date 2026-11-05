@@ -137,9 +137,11 @@ export function startScanner(opts: ScannerOptions): Scanner {
   const scan = (): void => {
     if (stopped) return;
     const settings = opts.settings();
-    if (!settings.enabled) return;
     const hot = opts.hot();
-    if (hot.length === 0) return;
+
+    // 卡片上的「屏蔽此 UP」按钮与题库无关：题库为空也照样挂上。
+    // 只有标题匹配需要题库与总开关。
+    const canMatch = settings.enabled && hot.length > 0;
 
     ensureStyle();
     const cards = document.querySelectorAll(CARD_SELECTORS.join(','));
@@ -147,6 +149,7 @@ export function startScanner(opts: ScannerOptions): Scanner {
       if (seen.has(card)) return;
       seen.add(card);
       if (opts.onCard?.(card) === true) return;
+      if (!canMatch) return;
       const title = extractTitle(card);
       if (!title) return;
       const result = matchTitle(title, hot, settings);
