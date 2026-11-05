@@ -6,9 +6,10 @@ import { DEFAULT_SETTINGS, type Settings } from '../core/types';
  * MAIN world：这里能拿到页面自己的 window.fetch，拦截必须在这一层做。
  * 注意本文件拿不到 chrome.storage，热榜列表由 content.js 通过 postMessage 送进来。
  */
-const state: { settings: Settings; hot: HotEntry[] } = {
+const state: { settings: Settings; hot: HotEntry[]; blockedUps: Set<number> } = {
   settings: { ...DEFAULT_SETTINGS },
   hot: [],
+  blockedUps: new Set(),
 };
 
 let resolveReady: (() => void) | undefined;
@@ -47,6 +48,8 @@ window.addEventListener('message', (event: MessageEvent) => {
 
   const payload = data.payload ?? {};
   state.settings = { ...DEFAULT_SETTINGS, ...(payload as Partial<Settings>) };
+  const blocked = Array.isArray(payload.blockedUps) ? (payload.blockedUps as number[]) : [];
+  state.blockedUps = new Set(blocked.filter((n) => Number.isFinite(n) && n > 0));
   const titles = Array.isArray(payload.titles) ? (payload.titles as string[]) : [];
   const staleTitles = Array.isArray(payload.staleTitles) ? (payload.staleTitles as string[]) : [];
   state.hot = [
