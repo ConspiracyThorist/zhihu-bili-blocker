@@ -90,4 +90,4 @@ https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/docs
 
 1. 把脚本页的安装链接补进仓库 README 的「油猴脚本」一节
 2. 首次发布后，`@namespace` 保持 `zhihu-bili-blocker` 不变，后续更新才会被识别为同一脚本
-3. 版本号按仓库的 `VERSION` 走（当前 1.0.0）。改代码后如果只覆盖 Release、不改版本号，GF 侧不会自动升版，需要手动改 `build.mjs` 里的 `VERSION` 再发布
+3. 版本号按仓库的 `VERSION` 走（当前 1.1.0）。改代码后如果只覆盖 Release、不改版本号，GF 侧不会自动升版，需要手动改 `build.mjs` 里的 `VERSION` 再发布
