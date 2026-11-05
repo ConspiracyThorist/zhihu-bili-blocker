@@ -7,12 +7,8 @@ dist/
 # 体检与调参的生成物（结论保留在 docs/）
 reports/
 
-# 本地凭据与部署结果（含口令），不进仓库
+# 本地凭据、部署结果与维护脚本（含口令），不进仓库
 .local/
-
-# 部署产物（含口令），不进仓库
-server/cloudflare/deploy-result.json
-server/aliyun/deploy-result.json
 
 # 体检工具的中间产物
 seed.meta.json
