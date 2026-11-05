@@ -95,7 +95,7 @@ npm run e2e                    # 31 项浏览器端到端测试
 判定标准与自动发现完全一致，只是样本从「按标题搜得到的视频」换成「这个 UP 自己的作品」，
 后者更直接，而且每个 UP 只花 1 次请求。
 
-部署步骤见 [docs/ups-worker.md](docs/ups-worker.md)。`upsEndpoint` 留空时整条链路静默降级。
+部署步骤属于维护者内部文档，不随仓库发布。`upsEndpoints` 为空时整条链路静默降级。
 
 ### 判定规则
 
@@ -180,7 +180,7 @@ node tools/gh.mjs whoami | list | get <path> | put <file> | runs | run <workflow
 node tools/gh-sync.mjs <本地目录> [owner/repo]   # 按 blob sha 增量同步
 ```
 
-Token 从 `D:\test\.github-token` 或环境变量 `GITHUB_TOKEN` 读取。
+Token 从环境变量 `GITHUB_TOKEN` 读取（或项目根目录下的本地凭据文件，该文件不进仓库）。
 
 ## 📄 许可证
 
