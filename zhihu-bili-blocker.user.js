@@ -264,7 +264,10 @@
   /* 只让自己可点，不挡住卡片的其它交互 */
   pointer-events: auto; contain: layout style;
 }
-a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacity: 1; }
+.bili-video-card:hover [data-zbb-up],
+.feed-card:hover [data-zbb-up],
+a:hover > [data-zbb-up],
+[data-zbb-up]:hover { opacity: 1; }
 [data-zbb-up]:hover { border-color: #fb7299; color: #fb7299; }
 `;
     const root = doc.head ?? doc.documentElement;
@@ -273,25 +276,37 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
   }
   function attachUpButton(card, owner, onBlock) {
     if (card.querySelector("[data-zbb-up]")) return;
+    if (!card.textContent || card.textContent.trim().length < 2) return;
     ensureUpStyle(card.ownerDocument ?? document);
-    const cardEl = card;
-    if (typeof getComputedStyle === "function") {
-      const pos = getComputedStyle(cardEl).position;
+    const cover = card.querySelector(
+      '.bili-video-card__cover, [class*="bili-video-card__cover"], .bili-cover, [class*="cover"], .pic'
+    );
+    if (!cover) return;
+    const host = cover;
+    try {
+      const pos = getComputedStyle(host).position;
       if (!pos || pos === "static") {
-        cardEl.style.position = "relative";
-        cardEl.setAttribute("data-zbb-pos", "1");
+        host.style.position = "relative";
+        host.setAttribute("data-zbb-pos", "1");
       }
+    } catch {
+      host.style.position = "relative";
     }
     const btn = document.createElement("button");
     btn.setAttribute("data-zbb-up", "1");
     btn.textContent = "屏蔽此 UP";
     btn.title = `把 ${owner.name || owner.mid} 加入 UP 库，此后其视频不再出现在首页`;
-    btn.addEventListener("click", (event) => {
+    const swallow = (event) => {
       event.preventDefault();
       event.stopPropagation();
+    };
+    btn.addEventListener("pointerdown", swallow);
+    btn.addEventListener("mousedown", swallow);
+    btn.addEventListener("click", (event) => {
+      swallow(event);
       onBlock(owner);
     });
-    card.appendChild(btn);
+    host.appendChild(btn);
   }
   function startScanner(opts) {
     const seen = /* @__PURE__ */ new WeakSet();
