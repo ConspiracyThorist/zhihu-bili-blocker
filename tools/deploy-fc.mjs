@@ -83,7 +83,7 @@ const env = {
   OSS_SK: cred.sk,
   SUBMIT_TOKEN: secret,
   RATE_LIMIT: process.env.RATE_LIMIT ?? '20',
-  GLOBAL_RATE_LIMIT: process.env.GLOBAL_RATE_LIMIT ?? '3000',
+  HOURLY_LIMIT: process.env.HOURLY_LIMIT ?? '500',
 };
 
 const created = await callAcs3({
