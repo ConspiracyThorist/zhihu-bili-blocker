@@ -147,7 +147,7 @@ node tools/run-audit.mjs --seed data/seed.txt       # 体检：以每条标题�
 
 ```
 1. https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/data/seed.txt
-2. https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/seed.txt
+2. https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/data/seed.txt
 ```
 
 | 地址 | 实测 | 缓存策略 |
