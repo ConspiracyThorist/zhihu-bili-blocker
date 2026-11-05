@@ -232,6 +232,48 @@
     style.textContent = '[data-zbb="1"]{display:none!important}';
     (doc.head ?? doc.documentElement).appendChild(style);
   }
+  var UP_STYLE_ID = "zbb-up-style";
+  function cardOwner(card) {
+    const link = card.querySelector('a[href*="space.bilibili.com"]');
+    const href = link?.getAttribute("href") ?? "";
+    const mid = Number(href.match(/space\.bilibili\.com\/(\d+)/)?.[1] ?? 0);
+    if (!mid) return null;
+    const name = card.querySelector('.bili-video-card__info--author, .up-name, [class*="author"]')?.textContent?.trim() ?? "";
+    return { mid, name: name.slice(0, 40) };
+  }
+  function ensureUpStyle(doc) {
+    if (doc.getElementById(UP_STYLE_ID)) return;
+    const style = doc.createElement("style");
+    style.id = UP_STYLE_ID;
+    style.textContent = `
+[data-zbb-up] {
+  position: absolute; top: 6px; right: 6px; z-index: 20;
+  padding: 3px 8px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.28);
+  background: rgba(20,22,27,.82); color: #fff;
+  font: 11px/1.4 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  opacity: 0; transition: opacity .15s; backdrop-filter: blur(6px);
+}
+a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacity: 1; }
+[data-zbb-up]:hover { border-color: #fb7299; color: #fb7299; }
+.bili-video-card, .feed-card { position: relative; }
+`;
+    (doc.head ?? doc.documentElement).appendChild(style);
+  }
+  function attachUpButton(card, owner, onBlock) {
+    if (card.querySelector("[data-zbb-up]")) return;
+    ensureUpStyle(card.ownerDocument ?? document);
+    const btn = document.createElement("button");
+    btn.setAttribute("data-zbb-up", "1");
+    btn.textContent = "屏蔽此 UP";
+    btn.title = `把 ${owner.name || owner.mid} 加入 UP 库，此后其视频不再出现在首页`;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onBlock(owner);
+    });
+    card.appendChild(btn);
+  }
   function startScanner(opts) {
     const seen = /* @__PURE__ */ new WeakSet();
     let timer = 0;
@@ -247,6 +289,7 @@
       cards.forEach((card) => {
         if (seen.has(card)) return;
         seen.add(card);
+        if (opts.onCard?.(card) === true) return;
         const title = extractTitle(card);
         if (!title) return;
         const result = matchTitle(title, hot, settings);
@@ -296,6 +339,11 @@
         for (let i = node.length - 1; i >= 0; i -= 1) {
           const el = node[i];
           if (looksLikeCard(el)) {
+            if (hooks.shouldDrop?.(el)) {
+              node.splice(i, 1);
+              removed += 1;
+              continue;
+            }
             const result = hooks.match(el.title);
             if (result.hit) {
               hooks.onHit(el.title, result);
@@ -332,6 +380,11 @@
   }
 
   // src/core/hook.ts
+  function ownerMid(item) {
+    const node = item;
+    const mid = Number(node?.owner?.mid ?? node?.mid);
+    return Number.isFinite(mid) ? mid : 0;
+  }
   function installFeedHook(opts) {
     const { win: win2, ready, getState, onHit } = opts;
     const check = opts.checkUrl ?? ((u) => isFeedUrl(u, win2.location?.href));
@@ -366,7 +419,11 @@
         const json = await res.clone().json();
         const removed = pruneFeed(json, {
           match: (title) => matchTitle(title, state2.hot, state2.settings),
-          onHit
+          onHit,
+          shouldDrop: (item) => {
+            const ups = state2.blockedUps;
+            return !!ups && ups.size > 0 && ups.has(ownerMid(item));
+          }
         });
         if (removed === 0) return res;
         const headers = new Headers(res.headers);
@@ -404,7 +461,11 @@
             const json = typeof raw === "string" ? JSON.parse(raw) : raw;
             const removed = pruneFeed(json, {
               match: (title) => matchTitle(title, state2.hot, state2.settings),
-              onHit
+              onHit,
+              shouldDrop: (item) => {
+                const ups = state2.blockedUps;
+                return !!ups && ups.size > 0 && ups.has(ownerMid(item));
+              }
             });
             if (removed === 0) return;
             const text = JSON.stringify(json);
@@ -451,6 +512,35 @@
       if (title) out.push(title);
     }
     return out.length > 1 ? out.slice(1) : out;
+  }
+
+  // src/core/ups.ts
+  function parseUpsFile(text) {
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return [];
+    }
+    const entries = json?.entries;
+    if (!Array.isArray(entries)) return [];
+    const out = [];
+    for (const raw of entries) {
+      const mid = Number(raw?.mid);
+      if (!Number.isFinite(mid) || mid <= 0) continue;
+      const name = String(raw?.name ?? "").slice(0, 60);
+      out.push({ mid, name, source: "auto" });
+    }
+    return out;
+  }
+  function mergeUps(current, remote) {
+    const manual = current.filter((e) => e.source === "manual");
+    const byMid = /* @__PURE__ */ new Map();
+    for (const entry of manual) byMid.set(entry.mid, entry);
+    for (const entry of remote) {
+      if (!byMid.has(entry.mid)) byMid.set(entry.mid, entry);
+    }
+    return [...byMid.values()];
   }
 
   // src/core/pool.ts
@@ -535,7 +625,12 @@
     ],
     poolDays: 30,
     poolMax: 800,
-    rsshub: ""
+    rsshub: "",
+    upBlockEnabled: true,
+    remoteUpsUrls: [
+      "https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/ups.json",
+      "https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/ups.json"
+    ]
   };
   var MODES = [
     { id: "conservative", name: "保守", threshold: 0.86, hint: "只拦照搬" },
@@ -549,7 +644,8 @@
     settings: "zbb:settings",
     hot: "zbb:hot",
     records: "zbb:records",
-    stats: "zbb:stats"
+    stats: "zbb:stats",
+    ups: "zbb:ups"
   };
   var RECORD_LIMIT = 50;
 
@@ -1001,8 +1097,22 @@
     stale: [],
     pool: readJson(KEYS.hot, null),
     records: readJson(KEYS.records, []),
-    stats: readJson(KEYS.stats, { total: 0 })
+    stats: readJson(KEYS.stats, { total: 0 }),
+    ups: readJson(KEYS.ups, { entries: [], updatedAt: 0 })
   };
+  function blockedMids() {
+    if (!state.settings.upBlockEnabled) return /* @__PURE__ */ new Set();
+    return new Set(state.ups.entries.map((entry) => entry.mid));
+  }
+  function addUp(mid, name) {
+    if (state.ups.entries.some((entry) => entry.mid === mid)) return;
+    state.ups = {
+      entries: [...state.ups.entries, { mid, name, source: "manual", addedAt: Date.now() }],
+      updatedAt: Date.now()
+    };
+    writeJson(KEYS.ups, state.ups);
+    widget?.refresh();
+  }
   var sessionHits = 0;
   var widget = null;
   function poolEntries() {
@@ -1158,10 +1268,29 @@
     savePool();
     widget?.refresh();
   }
+  var UPS_MAX_AGE = 20 * 60 * 60 * 1e3;
+  async function syncUps(force = false) {
+    const urls = (state.settings.remoteUpsUrls ?? []).filter(Boolean);
+    if (!urls.length) return;
+    if (!force && state.ups.updatedAt && Date.now() - state.ups.updatedAt < UPS_MAX_AGE) return;
+    for (const url of urls) {
+      try {
+        const text = await gmFetch(url);
+        const remote = parseUpsFile(text.slice(0, 512 * 1024));
+        if (!remote.length) throw new Error("没有解析到条目");
+        state.ups = { entries: mergeUps(state.ups.entries, remote), updatedAt: Date.now() };
+        writeJson(KEYS.ups, state.ups);
+        rebuild();
+        widget?.refresh();
+        return;
+      } catch {
+      }
+    }
+  }
   installFeedHook({
     win,
     ready: Promise.resolve(),
-    getState: () => ({ settings: state.settings, hot: allEntries() }),
+    getState: () => ({ settings: state.settings, hot: allEntries(), blockedUps: blockedMids() }),
     onHit: (biliTitle, result) => {
       addRecord({
         biliTitle,
@@ -1176,6 +1305,20 @@
   startScanner({
     settings: () => state.settings,
     hot: () => allEntries(),
+    onCard: (card) => {
+      const owner = cardOwner(card);
+      if (!owner) return false;
+      const blocked = blockedMids();
+      if (blocked.size > 0 && blocked.has(owner.mid)) {
+        hideCard(card);
+        return true;
+      }
+      attachUpButton(card, owner, (o) => {
+        addUp(o.mid, o.name);
+        hideCard(card);
+      });
+      return false;
+    },
     onHit: (biliTitle, result) => {
       addRecord({
         biliTitle,
@@ -1244,5 +1387,5 @@
       widget?.open();
     });
   }
-  void refreshHot().then(() => syncSeed());
+  void refreshHot().then(() => syncSeed()).then(() => syncUps());
 })();
