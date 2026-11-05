@@ -130,15 +130,10 @@ function applySettings(next: Partial<Settings>): void {
   postState();
 }
 
-/** 兼容 v1（titles: string[]）与 v2（entries: PoolEntry[]）两种结构 */
+/** 题库只有一种存储结构：entries + 元信息 */
 function entriesOf(value: unknown): PoolEntry[] {
-  const pool = value as HotPool & { titles?: string[] };
-  if (pool && Array.isArray(pool.entries)) return pool.entries;
-  if (pool && Array.isArray(pool.titles)) {
-    const at = pool.updatedAt || Date.now();
-    return pool.titles.map((title) => ({ title, firstSeen: at, lastSeen: at, origin: 'hot' as const }));
-  }
-  return [];
+  const pool = value as HotPool | null;
+  return Array.isArray(pool?.entries) ? pool.entries : [];
 }
 
 async function load(): Promise<void> {
