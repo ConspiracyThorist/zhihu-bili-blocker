@@ -45,14 +45,19 @@ jobs:
         run: npm install --ignore-scripts
 
       - name: 反查 UP 主
+        env:
+          # 用环境变量传递，不拼进 shell：避免输入被当成命令执行
+          INPUT_MODE: ${{ github.event.inputs.mode }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
-          MODE="${{ github.event.inputs.mode }}"
-          if [ "${{ github.event.schedule }}" = "0 4 1 * *" ]; then
+          MODE="${INPUT_MODE:-incremental}"
+          if [ "$SCHEDULE" = "0 4 1 * *" ]; then
             MODE=full
           fi
-          if [ -z "$MODE" ]; then
-            MODE=incremental
-          fi
+          case "$MODE" in
+            full|incremental) ;;
+            *) echo "非法模式：$MODE"; exit 1 ;;
+          esac
           echo "扫描模式：$MODE"
           node tools/run-discover.mjs "--$MODE"
 
