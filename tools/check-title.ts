@@ -11,7 +11,7 @@ import { normalize } from '../src/core/normalize';
 import { DEFAULT_SETTINGS, MODES } from '../src/core/types';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const seed = await readFile(join(root, 'seed.txt'), 'utf8');
+const seed = await readFile(join(root, 'data', 'seed.txt'), 'utf8');
 const titles = seed
   .split(/\r?\n/)
   .map((l) => l.trim())
