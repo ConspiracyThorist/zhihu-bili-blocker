@@ -7,6 +7,9 @@ dist/
 # 体检工具的中间产物
 seed.meta.json
 
+# 部署产物（含口令），不进仓库
+worker/deploy-result.json
+
 # 截图只是本地预览，不进仓库
 reports/screenshots/
 
