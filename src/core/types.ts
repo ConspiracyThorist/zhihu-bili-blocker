@@ -36,6 +36,10 @@ export interface Settings {
   poolMax: number;
   /** 可选的第三方 RSSHub 实例，留空则不启用 */
   rsshub: string;
+  /** UP 库拦截开关（按 UP 整号屏蔽） */
+  upBlockEnabled: boolean;
+  /** 远端 UP 库地址，按序尝试 */
+  remoteUpsUrls: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -55,6 +59,11 @@ export const DEFAULT_SETTINGS: Settings = {
   poolDays: 30,
   poolMax: 800,
   rsshub: '',
+  upBlockEnabled: true,
+  remoteUpsUrls: [
+    'https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/ups.json',
+    'https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/ups.json',
+  ],
 };
 
 export interface RemoteMeta {
@@ -121,6 +130,7 @@ export const KEYS = {
   hot: 'zbb:hot',
   records: 'zbb:records',
   stats: 'zbb:stats',
+  ups: 'zbb:ups',
 } as const;
 
 export const RECORD_LIMIT = 50;
