@@ -10,6 +10,7 @@
   },
   "host_permissions": [
     "*://*.bilibili.com/*",
+    "*://*.workers.dev/*",
     "https://api.zhihu.com/*",
     "https://www.zhihu.com/*"
   ],
