@@ -14,8 +14,8 @@ tools/             构建之外的脚本：题库生成/体检、UP 发现与审
 tests/             单元测试、产物冒烟、端到端测试
 assets/icons/      图标源文件，由 scripts/make-icons.py 生成
 docs/              发布与部署文档，以及题库体检结论
-seed.txt           题库种子，由 GitHub Actions 每日刷新
-ups.json           UP 库，由 CI 生成并提交
+data/seed.txt      题库种子，由 GitHub Actions 每日刷新
+data/ups.json      UP 库，由 CI 生成并提交
 ```
 
 `src/core` 不引用任何 `chrome.*` 或 `GM_*` API，两个宿主共用的逻辑全部集中在此。
@@ -125,7 +125,7 @@ npm run e2e                    # 31 项浏览器端到端测试
 
 ```bash
 node tools/build-seed.mjs --days 60            # 生成种子：热榜 + 日报往期，默认合并已有文件
-node tools/run-audit.mjs --seed seed.txt       # 体检：以每条标题检索 B 站并统计命中率
+node tools/run-audit.mjs --seed data/seed.txt       # 体检：以每条标题检索 B 站并统计命中率
 ```
 
 `build-seed` 默认采用合并策略而非覆盖。GitHub Actions 运行环境无法访问知乎日报接口，若直接覆盖会将数百条历史条目替换为 30 条。
@@ -146,7 +146,7 @@ node tools/run-audit.mjs --seed seed.txt       # 体检：以每条标题检索 
 `seed.txt` 更新后，客户端按顺序尝试两个镜像源：
 
 ```
-1. https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/seed.txt
+1. https://gh-proxy.com/https://raw.githubusercontent.com/ConspiracyThorist/zhihu-bili-blocker/main/data/seed.txt
 2. https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/seed.txt
 ```
 
