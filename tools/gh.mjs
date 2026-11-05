@@ -24,14 +24,14 @@ const API = 'https://api.github.com';
 
 async function getToken() {
   if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN.trim();
-  for (const p of ['D:\\test\\.github-token', 'D:\\test\\.github_token']) {
+  for (const p of [new URL('../.local/github-token', import.meta.url), new URL('../.local/.github_token', import.meta.url)]) {
     try {
       return (await readFile(p, 'utf8')).trim();
     } catch {
       /* 继续找 */
     }
   }
-  throw new Error('找不到 token：请设置 GITHUB_TOKEN，或写入 D:\\test\\.github-token');
+  throw new Error('找不到 token：请设置 GITHUB_TOKEN，或写入 .local/github-token');
 }
 
 function parseArgs(argv) {
