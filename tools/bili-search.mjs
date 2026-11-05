@@ -127,11 +127,43 @@ export async function createSearcher({ intervalMs = 1200 } = {}) {
     };
   }
 
+  /**
+   * 拉某个 UP 最近的投稿。用户投稿审核靠这个算命中率——
+   * 样本是"这个人自己的作品"，比按标题反查更直接，且只花 1 次请求。
+   */
+  async function userVideos(mid, pageSize = 50) {
+    if (!mixin || Date.now() - keyAt > 15 * 60 * 1000) await refreshKeys();
+    await throttle();
+    calls += 1;
+
+    const params = { mid, ps: pageSize, pn: 1, order: 'pubdate', platform: 'web' };
+    const res = await fetch(
+      `https://api.bilibili.com/x/space/wbi/arc/search?${sign(params, mixin)}`,
+      {
+        headers: {
+          'user-agent': UA,
+          referer: `https://space.bilibili.com/${mid}/video`,
+          cookie: cookieHeader(),
+          accept: 'application/json',
+        },
+      },
+    );
+    const json = await res.json().catch(() => null);
+    const list = json?.data?.list?.vlist;
+    if (!Array.isArray(list)) return { ok: false, code: json?.code, items: [] };
+    return {
+      ok: json.code === 0,
+      code: json.code,
+      items: list.map((v) => ({ bvid: v.bvid, title: stripHtml(v.title), created: v.created })),
+    };
+  }
+
   await primeCookies();
   await refreshKeys();
 
   return {
     search,
+    userVideos,
     get calls() {
       return calls;
     },
