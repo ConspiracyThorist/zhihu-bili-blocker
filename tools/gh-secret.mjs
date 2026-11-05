@@ -9,7 +9,8 @@
 import { readFile } from 'node:fs/promises';
 import sodium from 'libsodium-wrappers';
 
-const TOKEN = (await readFile('D:\\test\\.github-token', 'utf8')).trim();
+const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const TOKEN = (await readFile(new URL('../.local/github-token', import.meta.url), 'utf8')).trim();
 const OWNER = 'ConspiracyThorist';
 const REPO = 'zhihu-bili-blocker';
 const API = 'https://api.github.com';
