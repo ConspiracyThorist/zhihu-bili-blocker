@@ -49,6 +49,11 @@ function renderModes(): void {
 }
 
 function renderThreshold(): void {
+  ($('#contribute') as HTMLInputElement).addEventListener('change', (event) => {
+    settings = { ...settings, contributeUps: (event.target as HTMLInputElement).checked };
+    void saveSettings();
+  });
+
   ($('#upEnabled') as HTMLInputElement).addEventListener('change', (event) => {
     settings = { ...settings, upBlockEnabled: (event.target as HTMLInputElement).checked };
     void saveSettings();
@@ -203,6 +208,7 @@ function renderUps(): void {
   const list = $('#upList');
   ($('#upCount') as HTMLElement).textContent = String(ups.length);
   ($('#upEnabled') as HTMLInputElement).checked = settings.upBlockEnabled;
+  ($('#contribute') as HTMLInputElement).checked = settings.contributeUps;
   list.textContent = '';
   ($('#upEmpty') as HTMLElement).classList.toggle('hidden', ups.length > 0);
 
