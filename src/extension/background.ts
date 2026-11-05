@@ -189,8 +189,10 @@ async function syncSeed(): Promise<HotPool> {
  */
 async function flushOutbox(): Promise<number> {
   const settings = await getSettings();
-  const endpoint = (settings.upsEndpoint ?? '').trim().replace(/\/$/, '');
-  if (!settings.contributeUps || !endpoint) return 0;
+  const endpoints = (settings.upsEndpoints ?? [])
+    .map((u) => u.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+  if (!settings.contributeUps || endpoints.length === 0) return 0;
 
   const stored = (await chrome.storage.local.get(KEYS.outbox))[KEYS.outbox] as OutboxItem[] | undefined;
   const queue = stored ?? [];
@@ -199,18 +201,25 @@ async function flushOutbox(): Promise<number> {
   const left: OutboxItem[] = [];
   let sent = 0;
   for (const item of queue) {
-    try {
-      const res = await fetch(`${endpoint}/submit`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ mid: item.mid, name: item.name }),
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      sent += 1;
-    } catch {
-      left.push(item);
+    let ok = false;
+    // 按序尝试：国内云函数优先，通了就不再打备用
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(`${endpoint}/submit`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ mid: item.mid, name: item.name }),
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        ok = true;
+        break;
+      } catch {
+        /* 换下一个接收端 */
+      }
     }
+    if (ok) sent += 1;
+    else left.push(item);
   }
   await chrome.storage.local.set({ [KEYS.outbox]: left });
   return sent;
