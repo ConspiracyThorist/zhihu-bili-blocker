@@ -282,15 +282,15 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
     const scan = () => {
       if (stopped) return;
       const settings = opts.settings();
-      if (!settings.enabled) return;
       const hot = opts.hot();
-      if (hot.length === 0) return;
+      const canMatch = settings.enabled && hot.length > 0;
       ensureStyle();
       const cards = document.querySelectorAll(CARD_SELECTORS.join(","));
       cards.forEach((card) => {
         if (seen.has(card)) return;
         seen.add(card);
         if (opts.onCard?.(card) === true) return;
+        if (!canMatch) return;
         const title = extractTitle(card);
         if (!title) return;
         const result = matchTitle(title, hot, settings);
