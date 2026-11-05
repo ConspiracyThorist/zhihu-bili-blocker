@@ -2,7 +2,7 @@
 // @name         知乎热榜屏蔽B站推荐
 // @name:en      Zhihu Hot List Blocker for Bilibili
 // @namespace    zhihu-bili-blocker
-// @version      1.1.0
+// @version      0.0.3
 // @description  把知乎热榜当过滤字典，在 B 站首页推荐里按标题模糊匹配，命中就在渲染前摘掉搬运视频
 // @description:en  Block Bilibili home feed videos that copy Zhihu hot-list questions, matched by title before render
 // @author       ConspiracyThorist
@@ -30,7 +30,7 @@
 "use strict";
 (() => {
   // src/core/dice.ts
-  function bigrams(s) {
+  function bigramMap(s) {
     const map = /* @__PURE__ */ new Map();
     if (s.length < 2) {
       if (s.length === 1) map.set(s, 1);
@@ -42,39 +42,30 @@
     }
     return map;
   }
-  function diceCoefficient(a, b) {
-    if (!a || !b) return 0;
-    if (a === b) return 1;
-    if (a.length < 2 || b.length < 2) return 0;
-    const left = bigrams(a);
-    const right = bigrams(b);
-    let overlap = 0;
+  function gramTotal(map) {
     let total = 0;
-    for (const [g, n] of left) {
-      total += n;
-      const m = right.get(g);
-      if (m) overlap += Math.min(n, m);
-    }
-    for (const n of right.values()) total += n;
-    if (total === 0) return 0;
-    return 2 * overlap / total;
+    for (const n of map.values()) total += n;
+    return total;
   }
-  function bigramCoverage(a, b) {
-    if (!a || !b) return 0;
-    if (a === b) return 1;
-    const left = bigrams(a);
-    const right = bigrams(b);
+  function diceFromMaps(a, aTotal, b, bTotal) {
+    if (aTotal === 0 || bTotal === 0) return 0;
     let overlap = 0;
-    let totalA = 0;
-    let totalB = 0;
-    for (const [g, n] of left) {
-      totalA += n;
-      const m = right.get(g);
+    const [small, big] = a.size <= b.size ? [a, b] : [b, a];
+    for (const [g, n] of small) {
+      const m = big.get(g);
       if (m) overlap += Math.min(n, m);
     }
-    for (const n of right.values()) totalB += n;
-    const denominator = Math.min(totalA, totalB);
+    return 2 * overlap / (aTotal + bTotal);
+  }
+  function coverageFromMaps(a, aTotal, b, bTotal) {
+    const denominator = Math.min(aTotal, bTotal);
     if (denominator === 0) return 0;
+    let overlap = 0;
+    const [small, big] = a.size <= b.size ? [a, b] : [b, a];
+    for (const [g, n] of small) {
+      const m = big.get(g);
+      if (m) overlap += Math.min(n, m);
+    }
     return overlap / denominator;
   }
 
@@ -147,10 +138,12 @@
       const norm = normalize(raw);
       if (!norm || seen.has(norm)) continue;
       seen.add(norm);
-      out.push({ raw, norm });
+      const grams = bigramMap(norm);
+      out.push({ raw, norm, grams, gramTotal: gramTotal(grams) });
     }
     return out;
   }
+  var MIN_LEN_RATIO = 0.3;
   function matchTitle(biliTitle, hot, settings) {
     if (!settings.enabled || hot.length === 0) return NO_HIT;
     const norm = normalize(biliTitle);
@@ -163,6 +156,8 @@
     const threshold = clamp(settings.threshold, 0.5, 0.98);
     const minLen = Math.max(2, settings.minLen);
     let best = NO_HIT;
+    const qGrams = norm.length >= 2 ? bigramMap(norm) : null;
+    const qTotal = qGrams ? gramTotal(qGrams) : 0;
     for (const entry of hot) {
       const entryThreshold = Math.min(0.98, threshold + (entry.stale ? 0.05 : 0));
       if (entry.norm === norm) {
@@ -170,24 +165,29 @@
       }
       if (norm.length >= 2 && entry.norm.length >= 2) {
         const shorter = norm.length <= entry.norm.length ? norm : entry.norm;
-        const longer = shorter === norm ? entry.norm : norm;
-        if (longer.includes(shorter)) {
-          const ratio = shorter.length / longer.length;
+        const longer2 = shorter === norm ? entry.norm : norm;
+        if (longer2.includes(shorter)) {
+          const ratio = shorter.length / longer2.length;
           const need = shorter.length < minLen ? Math.max(0.95, entryThreshold) : Math.max(0.55, entryThreshold);
           if (ratio >= need && ratio > best.score) {
             best = { hit: true, score: round(ratio), zhihuTitle: entry.raw, reason: "contain" };
           }
         }
       }
-      if (norm.length >= minLen) {
-        const score = diceCoefficient(norm, entry.norm);
-        if (score >= entryThreshold && score > best.score) {
-          best = { hit: true, score: round(score), zhihuTitle: entry.raw, reason: "dice" };
-        }
-        const cover = bigramCoverage(norm, entry.norm);
-        if (cover >= entryThreshold && cover > best.score) {
-          best = { hit: true, score: round(cover), zhihuTitle: entry.raw, reason: "cover" };
-        }
+      if (!qGrams || norm.length < minLen) continue;
+      const entryGrams = entry.grams;
+      if (!entryGrams) continue;
+      const longer = Math.max(norm.length, entry.norm.length);
+      const shorterLen = Math.min(norm.length, entry.norm.length);
+      if (shorterLen / longer < MIN_LEN_RATIO) continue;
+      const eTotal = entry.gramTotal ?? gramTotal(entryGrams);
+      const score = diceFromMaps(qGrams, qTotal, entryGrams, eTotal);
+      if (score >= entryThreshold && score > best.score) {
+        best = { hit: true, score: round(score), zhihuTitle: entry.raw, reason: "dice" };
+      }
+      const cover = coverageFromMaps(qGrams, qTotal, entryGrams, eTotal);
+      if (cover >= entryThreshold && cover > best.score) {
+        best = { hit: true, score: round(cover), zhihuTitle: entry.raw, reason: "cover" };
       }
     }
     return best;
@@ -312,7 +312,7 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
       timer = window.setTimeout(() => {
         timer = 0;
         scan();
-      }, 120);
+      }, 200);
     };
     scan();
     const root = document.documentElement ?? document;
