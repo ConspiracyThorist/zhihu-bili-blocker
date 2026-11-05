@@ -231,7 +231,9 @@
     const style = doc.createElement("style");
     style.id = STYLE_ID;
     style.textContent = '[data-zbb="1"]{display:none!important}';
-    (doc.head ?? doc.documentElement).appendChild(style);
+    const root = doc.head ?? doc.documentElement;
+    if (!root) return;
+    root.appendChild(style);
   }
   var UP_STYLE_ID = "zbb-up-style";
   function cardOwner(card) {
@@ -248,18 +250,24 @@
     style.id = UP_STYLE_ID;
     style.textContent = `
 [data-zbb-up] {
-  position: absolute; top: 6px; right: 6px; z-index: 20;
+  /* 左上角：B 站自己的「稍后观看」等在右上角，这里避开它，也避开其它净化脚本的按钮 */
+  position: absolute; top: 6px; left: 6px; right: auto; z-index: 2147483000;
   padding: 3px 8px; border-radius: 999px; cursor: pointer;
   border: 1px solid rgba(255,255,255,.28);
   background: rgba(20,22,27,.82); color: #fff;
   font: 11px/1.4 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
   opacity: 0; transition: opacity .15s; backdrop-filter: blur(6px);
+  /* 只让自己可点，不挡住卡片的其它交互 */
+  pointer-events: auto; contain: layout style;
 }
 a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacity: 1; }
 [data-zbb-up]:hover { border-color: #fb7299; color: #fb7299; }
+/* 只在卡片本身没定位时才补 relative，避免覆盖其它脚本的布局 */
 .bili-video-card, .feed-card { position: relative; }
 `;
-    (doc.head ?? doc.documentElement).appendChild(style);
+    const root = doc.head ?? doc.documentElement;
+    if (!root) return;
+    root.appendChild(style);
   }
   function attachUpButton(card, owner, onBlock) {
     if (card.querySelector("[data-zbb-up]")) return;
@@ -287,10 +295,10 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
       ensureStyle();
       const cards = document.querySelectorAll(CARD_SELECTORS.join(","));
       cards.forEach((card) => {
-        if (seen.has(card)) return;
-        seen.add(card);
+        const first = !seen.has(card);
+        if (first) seen.add(card);
         if (opts.onCard?.(card) === true) return;
-        if (!canMatch) return;
+        if (!canMatch || !first) return;
         const title = extractTitle(card);
         if (!title) return;
         const result = matchTitle(title, hot, settings);
