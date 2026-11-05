@@ -33,8 +33,13 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m "chore: refresh seed $(date -u +%Y-%m-%d)"
-          git push
+          git commit -m "chore: refresh seed $(date -u +%Y-%m-%d)"          # 并发推送时可能被拒绝，先 rebase 再重试几次
+          for i in 1 2 3 4 5; do
+            if git push; then break; fi
+            echo "push 被拒，第 $i 次重试"
+            sleep 3
+            git pull --rebase --autostash || true
+          done
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: 刷新 jsDelivr 缓存
