@@ -70,9 +70,8 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
   contributeUps: true,
-  // 投稿端点暂时留空：原阿里云账号欠费、Cloudflare 国内不可达。
-  // 配置了地址才会启用上传，否则手动拉黑只写本地库。
-  upsEndpoints: [],
+  // 只保留国内端点：Cloudflare 的 workers.dev 在国内被 DNS 污染，留着只会白等超时。
+  upsEndpoints: ['https://zbb-ups-nwwblkigcf.cn-hangzhou.fcapp.run'],
 };
 
 export interface RemoteMeta {
