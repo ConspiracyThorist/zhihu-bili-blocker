@@ -5,15 +5,17 @@
 ## 📁 目录结构
 
 ```
-src/core/         与宿主无关：归一、相似度、判定、JSON 剪枝、URL 识别、fetch hook、DOM 扫描、题库池
-src/extension/    扩展壳：background(取数+题库同步) / page(MAIN world) / content(桥+DOM+浮窗) / popup
-src/userscript/   油猴壳：复用同一个 core，替换为 GM_* 适配
-tools/            题库生成与体检工具，以及通过 GitHub API 操作仓库的脚本
-tests/            单元测试、产物冒烟、浏览器端到端测试
-assets/icons/     图标源文件，由 scripts/make-icons.py 生成
-seed.txt          题库种子，由 GitHub Actions 每日刷新
-reports/          题库体检报告
-build.mjs         esbuild 双出口打包与 zip 生成
+src/core/          与宿主无关：归一、相似度、判定、JSON 剪枝、URL 识别、fetch hook、DOM 扫描、题库池
+src/extension/     扩展壳：background(取数+题库同步) / page(MAIN world) / content(桥+DOM+浮窗) / popup
+src/userscript/    油猴壳：复用 core，换成 GM_* 适配
+server/cloudflare/ 投稿接收端（Workers + KV）
+server/aliyun/     投稿接收端（FC + OSS，国内主用）
+tools/             构建之外的脚本：题库生成/体检、UP 发现与审核、部署、仓库操作
+tests/             单元测试、产物冒烟、端到端测试
+assets/icons/      图标源文件，由 scripts/make-icons.py 生成
+docs/              发布与部署文档，以及题库体检结论
+seed.txt           题库种子，由 GitHub Actions 每日刷新
+ups.json           UP 库，由 CI 生成并提交
 ```
 
 `src/core` 不引用任何 `chrome.*` 或 `GM_*` API，两个宿主共用的逻辑全部集中在此。
@@ -85,7 +87,7 @@ npm run e2e                    # 31 项浏览器端到端测试
 用户手动拉黑时，除了写本地库，还会进一条匿名投稿：
 
 1. 扩展把 `{mid, name}` 写进 `zbb:outbox`（断网也不丢，下次启动或定时任务补发）
-2. 发到 Cloudflare Worker（`worker/src/index.ts`）入队，同 IP 每天限 20 次
+2. 发到投稿端点（`server/aliyun/src/index.ts` 国内主用、`server/cloudflare/src/index.ts` 兜底）入队，同 IP 每日 20 次 + 全局每小时 500 次
 3. CI 每 6 小时（`up-review.yml`）拉队列，用 `userVideos(mid)` 拿该 UP 最近 50 条投稿，
    逐条与题库匹配，算命中率
 4. 命中 ≥2 且命中率 ≥30% 才并入 `ups.json`，否则丢弃并出队
@@ -117,7 +119,7 @@ npm run e2e                    # 31 项浏览器端到端测试
 - 超过 7 天的条目定义为旧条目，匹配阈值自动提高 0.05
 - 远端种子采用整批替换，确保作者侧删除的条目在客户端同步后消失
 
-容量上限设为 800 而非更大规模，依据来自 `reports/pool-audit.md`：77 条题库中仅 15.6% 能在 B 站检索到同题视频，72.7% 完全检索不到。扩大规模不会提升有效密度，只会增加误伤概率。
+容量上限设为 800 而非更大规模，依据来自 `docs/pool-audit.md`：77 条题库中仅 15.6% 能在 B 站检索到同题视频，72.7% 完全检索不到。扩大规模不会提升有效密度，只会增加误伤概率。
 
 ## 🧰 题库工具
 
