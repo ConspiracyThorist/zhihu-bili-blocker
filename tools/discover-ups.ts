@@ -105,6 +105,14 @@ const discovered = [...stats.entries()]
 
 // 增量：把本轮结果累加进已有条目；全量：直接重建
 let merged = discovered;
+
+// 保护：一条结果都没拿到，多半是 B 站限流/接口变更，不是「真的没人搬」。
+// 这时候不要把已有库清空，保留上一版等下次跑。
+if (stats.size === 0 && existing?.entries.length) {
+  console.warn('⚠️ 本轮没有拿到任何搜索结果，保留原有 UP 库不覆盖');
+  process.exit(0);
+}
+
 if (!FULL && existing) {
   const byMid = new Map(existing.entries.map((e) => [e.mid, { ...e }]));
   for (const add of discovered) {
