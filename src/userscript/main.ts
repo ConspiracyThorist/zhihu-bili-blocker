@@ -1,7 +1,8 @@
-import { startScanner } from '../core/dom';
+import { attachUpButton, cardOwner, hideCard, startScanner } from '../core/dom';
 import { prepareHot, type HotEntry } from '../core/engine';
 import { installFeedHook } from '../core/hook';
 import { parseRss, pickTitles } from '../core/hotparse';
+import { mergeUps, parseUpsFile, type UpEntry } from '../core/ups';
 import {
   mergePool,
   parseSeed,
@@ -61,7 +62,24 @@ const state = {
   pool: readJson<HotPool | null>(KEYS.hot, null),
   records: readJson<HitRecord[]>(KEYS.records, []),
   stats: readJson<Stats>(KEYS.stats, { total: 0 }),
+  ups: readJson<{ entries: UpEntry[]; updatedAt: number }>(KEYS.ups, { entries: [], updatedAt: 0 }),
 };
+
+/** UP 库命中的 mid 集合；开关关掉时返回空集合 */
+function blockedMids(): Set<number> {
+  if (!state.settings.upBlockEnabled) return new Set();
+  return new Set(state.ups.entries.map((entry) => entry.mid));
+}
+
+function addUp(mid: number, name: string): void {
+  if (state.ups.entries.some((entry) => entry.mid === mid)) return;
+  state.ups = {
+    entries: [...state.ups.entries, { mid, name, source: 'manual', addedAt: Date.now() }],
+    updatedAt: Date.now(),
+  };
+  writeJson(KEYS.ups, state.ups);
+  widget?.refresh();
+}
 
 let sessionHits = 0;
 let widget: ReturnType<typeof mountWidget> | null = null;
@@ -244,11 +262,35 @@ async function syncSeed(force = false): Promise<void> {
   widget?.refresh();
 }
 
+const UPS_MAX_AGE = 20 * 60 * 60 * 1000;
+
+/** 同步远端 UP 库：auto 条目整批替换，手动拉黑的保留 */
+async function syncUps(force = false): Promise<void> {
+  const urls = (state.settings.remoteUpsUrls ?? []).filter(Boolean);
+  if (!urls.length) return;
+  if (!force && state.ups.updatedAt && Date.now() - state.ups.updatedAt < UPS_MAX_AGE) return;
+
+  for (const url of urls) {
+    try {
+      const text = await gmFetch(url);
+      const remote = parseUpsFile(text.slice(0, 512 * 1024));
+      if (!remote.length) throw new Error('没有解析到条目');
+      state.ups = { entries: mergeUps(state.ups.entries, remote), updatedAt: Date.now() };
+      writeJson(KEYS.ups, state.ups);
+      rebuild();
+      widget?.refresh();
+      return;
+    } catch {
+      /* 换下一个源 */
+    }
+  }
+}
+
 // ---- 拦截层（主路径）----
 installFeedHook({
   win,
   ready: Promise.resolve(),
-  getState: () => ({ settings: state.settings, hot: allEntries() }),
+  getState: () => ({ settings: state.settings, hot: allEntries(), blockedUps: blockedMids() }),
   onHit: (biliTitle, result) => {
     addRecord({
       biliTitle,
@@ -265,6 +307,20 @@ installFeedHook({
 startScanner({
   settings: () => state.settings,
   hot: () => allEntries(),
+  onCard: (card) => {
+    const owner = cardOwner(card);
+    if (!owner) return false;
+    const blocked = blockedMids();
+    if (blocked.size > 0 && blocked.has(owner.mid)) {
+      hideCard(card);
+      return true;
+    }
+    attachUpButton(card, owner, (o) => {
+      addUp(o.mid, o.name);
+      hideCard(card);
+    });
+    return false;
+  },
   onHit: (biliTitle, result) => {
     addRecord({
       biliTitle,
@@ -339,4 +395,4 @@ if (typeof GM_registerMenuCommand === 'function') {
   });
 }
 
-void refreshHot().then(() => syncSeed());
+void refreshHot().then(() => syncSeed()).then(() => syncUps());
