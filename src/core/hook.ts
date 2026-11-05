@@ -6,6 +6,15 @@ import type { MatchResult, Settings } from './types';
 export interface HookState {
   settings: Settings;
   hot: HotEntry[];
+  /** UP 库命中的 mid 集合（整号屏蔽） */
+  blockedUps?: Set<number>;
+}
+
+/** 从 feed 卡片里取 UP 的 mid：B 站的字段是 owner.mid，个别接口放在顶层 */
+function ownerMid(item: unknown): number {
+  const node = item as { owner?: { mid?: unknown }; mid?: unknown } | null;
+  const mid = Number(node?.owner?.mid ?? node?.mid);
+  return Number.isFinite(mid) ? mid : 0;
 }
 
 export interface HookOptions {
@@ -72,6 +81,10 @@ function patchFetch(
         const removed = pruneFeed(json, {
           match: (title) => matchTitle(title, state.hot, state.settings),
           onHit,
+          shouldDrop: (item) => {
+            const ups = state.blockedUps;
+            return !!ups && ups.size > 0 && ups.has(ownerMid(item));
+          },
         });
         if (removed === 0) return res;
 
@@ -125,6 +138,10 @@ function patchXhr(
           const removed = pruneFeed(json, {
             match: (title) => matchTitle(title, state.hot, state.settings),
             onHit,
+            shouldDrop: (item) => {
+              const ups = state.blockedUps;
+              return !!ups && ups.size > 0 && ups.has(ownerMid(item));
+            },
           });
           if (removed === 0) return;
 
