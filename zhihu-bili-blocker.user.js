@@ -634,7 +634,7 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
     ],
     // 静默贡献：只在用户手动拉黑时上报 mid，不带任何标识
     contributeUps: true,
-    upsEndpoint: ""
+    upsEndpoints: []
   };
   var MODES = [
     { id: "conservative", name: "保守", threshold: 0.86, hint: "只拦照搬" },
@@ -1111,21 +1111,24 @@ a:hover > [data-zbb-up], div:hover > [data-zbb-up], [data-zbb-up]:hover { opacit
   }
   function submitUp(mid, name) {
     if (!state.settings.contributeUps) return;
-    const endpoint = (state.settings.upsEndpoint ?? "").trim().replace(/\/$/, "");
-    if (!endpoint) return;
-    GM_xmlhttpRequest({
-      method: "POST",
-      url: `${endpoint}/submit`,
-      timeout: 12e3,
-      headers: { "content-type": "application/json" },
-      data: JSON.stringify({ mid, name }),
-      onload: () => {
-      },
-      onerror: () => {
-      },
-      ontimeout: () => {
-      }
-    });
+    const endpoints = (state.settings.upsEndpoints ?? []).map((u) => u.trim().replace(/\/$/, "")).filter(Boolean);
+    if (endpoints.length === 0) return;
+    const attempt = (index) => {
+      if (index >= endpoints.length) return;
+      GM_xmlhttpRequest({
+        method: "POST",
+        url: `${endpoints[index]}/submit`,
+        timeout: 8e3,
+        headers: { "content-type": "application/json" },
+        data: JSON.stringify({ mid, name }),
+        onload: (res) => {
+          if (res.status < 200 || res.status >= 300) attempt(index + 1);
+        },
+        onerror: () => attempt(index + 1),
+        ontimeout: () => attempt(index + 1)
+      });
+    };
+    attempt(0);
   }
   function addUp(mid, name) {
     if (state.ups.entries.some((entry) => entry.mid === mid)) return;
