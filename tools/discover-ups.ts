@@ -113,13 +113,21 @@ if (stats.size === 0 && existing?.entries.length) {
   process.exit(0);
 }
 
+// 全量 + 限流上限：题库上万条后，一次全量要 12000 × 1.2 s ≈ 4 小时，
+// 远超 CI 的 45 分钟预算，所以带 --limit 的「全量」只是抽样深扫，不能拿它重建。
+const partialFull = FULL && LIMIT > 0;
+
 // 同样的道理：全量重建时若结果明显少于现有库，说明这一轮没扫全，
 // 直接重建等于把已验证的条目删掉。改成合并，宁多勿少。
 const degraded =
   FULL &&
   !!existing?.entries.length &&
-  discovered.length < existing.entries.length * 0.6;
-if (degraded) {
+  (partialFull || discovered.length < existing.entries.length * 0.6);
+if (degraded && partialFull) {
+  console.log(
+    `ℹ️ 带 --limit=${LIMIT} 的全量按抽样处理，本轮结果合并进现有库（不重建）`,
+  );
+} else if (degraded) {
   console.warn(
     `⚠️ 全量只发现 ${discovered.length} 个，明显少于现有 ${existing!.entries.length} 个，本轮改为合并而不是重建`,
   );
