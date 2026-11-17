@@ -1,5 +1,5 @@
 import { attachUpButton, cardOwner, hideCard, startScanner } from '../core/dom';
-import { prepareHot, type HotEntry } from '../core/engine';
+import { preparePool, type HotEntry } from '../core/engine';
 import { splitByFreshness, type PoolEntry } from '../core/pool';
 import { type UpEntry } from '../core/ups';
 import { mountWidget } from '../core/widget';
@@ -18,8 +18,11 @@ import {
  * MAIN world 拿不到 chrome.storage，所以这里是唯一的数据源。
  */
 let settings: Settings = { ...DEFAULT_SETTINGS };
-let fresh: HotEntry[] = [];
-let stale: HotEntry[] = [];
+/** 题库原文按新鲜度分两段：MAIN world 要自己重建 bigram 表，这里只负责传标题 */
+let freshTitles: string[] = [];
+let staleTitles: string[] = [];
+/** 带索引的池子：DOM 兜底层用，和 MAIN world 的判定结论保持一致 */
+let pool: HotEntry[] = [];
 let records: HitRecord[] = [];
 let statsTotal = 0;
 let sessionHits = 0;
@@ -72,8 +75,9 @@ function showContributeNotice(): void {
 /** 池子按新鲜度切两段：老条目在匹配时要更高的分数 */
 function rebuild(entries: PoolEntry[]): void {
   const split = splitByFreshness(entries, Date.now(), 7);
-  fresh = prepareHot(split.fresh.map((e) => e.title));
-  stale = prepareHot(split.stale.map((e) => e.title)).map((e) => ({ ...e, stale: true }));
+  freshTitles = split.fresh.map((e) => e.title);
+  staleTitles = split.stale.map((e) => e.title);
+  pool = preparePool(freshTitles, staleTitles);
 }
 
 function postState(): void {
@@ -87,8 +91,8 @@ function postState(): void {
           threshold: settings.threshold,
           minLen: settings.minLen,
           whitelist: settings.whitelist,
-          titles: fresh.map((entry) => entry.raw),
-          staleTitles: stale.map((entry) => entry.raw),
+          titles: freshTitles,
+          staleTitles,
           blockedUps: settings.upBlockEnabled ? ups.map((entry) => entry.mid) : [],
           loaded: true,
         },
@@ -187,7 +191,7 @@ window.addEventListener('message', (event: MessageEvent) => {
 
 const scanner = startScanner({
   settings: () => settings,
-  hot: () => [...fresh, ...stale],
+  hot: () => pool,
   onCard: (card) => {
     // 已经挂过按钮的卡片直接跳过，避免每轮扫描重复做 DOM 查询
     if (card.querySelector('[data-zbb-up]')) return false;
@@ -228,7 +232,7 @@ function mountUi(): void {
   widget = mountWidget({
     getSession: () => sessionHits,
     getTotal: () => statsTotal,
-    getPool: () => fresh.length + stale.length,
+    getPool: () => pool.length,
     getRecords: () => records,
     onAllow: (record) => {
       const next: Settings = {
