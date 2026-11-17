@@ -27,7 +27,9 @@ function arg(name, fallback) {
 
 const days = Number(arg('days', 60));
 const outPath = arg('out', join(root, 'data', 'seed.txt'));
-const maxEntries = Number(arg('max', 1000));
+// 上限要远大于历史存量：entries 的顺序是 热榜 → 日报 → 历史，
+// max 卡在 1000 的话，回填几千天后历史条目会被整段挤掉。
+const maxEntries = Number(arg('max', 25000));
 
 async function getJson(url) {
   const res = await fetch(url, {
@@ -116,6 +118,9 @@ async function main() {
   }
 
   const trimmed = entries.slice(0, maxEntries);
+  if (trimmed.length < entries.length) {
+    console.warn(`条目 ${entries.length} 超过上限 ${maxEntries}，已截掉 ${entries.length - trimmed.length} 条历史`);
+  }
 
   const header = [
     '# zhihu-bili-blocker seed',
