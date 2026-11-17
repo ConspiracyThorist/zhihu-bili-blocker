@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS,
   FETCH_TIMEOUT_MS,
   KEYS,
+  REMOTE_MAX_BYTES,
   type HotPool,
   type Settings,
 } from '../core/types';
@@ -22,8 +23,6 @@ interface OutboxItem {
 /** 知乎接口实测不校验 UA，但带上真实 UA 更稳妥，也便于日后排查 */
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-/** 远端种子文件最大读取量，防止被塞一个巨大文件拖垮匹配 */
-const REMOTE_MAX_BYTES = 512 * 1024;
 
 interface Source {
   name: string;
