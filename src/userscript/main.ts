@@ -1,5 +1,5 @@
 import { attachUpButton, cardOwner, hideCard, startScanner } from '../core/dom';
-import { prepareHot, type HotEntry } from '../core/engine';
+import { preparePool, type HotEntry } from '../core/engine';
 import { installFeedHook } from '../core/hook';
 import { parseRss, pickTitles } from '../core/hotparse';
 import { mergeUps, parseUpsFile, type UpEntry } from '../core/ups';
@@ -15,6 +15,7 @@ import {
   DEFAULT_SETTINGS,
   KEYS,
   RECORD_LIMIT,
+  REMOTE_MAX_BYTES,
   type HitRecord,
   type HotPool,
   type Settings,
@@ -57,8 +58,8 @@ function writeJson(key: string, value: unknown): void {
 
 const state = {
   settings: { ...DEFAULT_SETTINGS, ...readJson<Partial<Settings>>(KEYS.settings, {}) } as Settings,
-  fresh: [] as HotEntry[],
-  stale: [] as HotEntry[],
+  /** 带索引的题库池：一次建好，拦截层和兜底层共用 */
+  hot: [] as HotEntry[],
   pool: readJson<HotPool | null>(KEYS.hot, null),
   records: readJson<HitRecord[]>(KEYS.records, []),
   stats: readJson<Stats>(KEYS.stats, { total: 0 }),
@@ -119,12 +120,14 @@ function poolEntries(): PoolEntry[] {
 
 function rebuild(): void {
   const split = splitByFreshness(poolEntries(), Date.now(), 7);
-  state.fresh = prepareHot(split.fresh.map((e) => e.title));
-  state.stale = prepareHot(split.stale.map((e) => e.title)).map((e) => ({ ...e, stale: true }));
+  state.hot = preparePool(
+    split.fresh.map((e) => e.title),
+    split.stale.map((e) => e.title),
+  );
 }
 
 function allEntries(): HotEntry[] {
-  return [...state.fresh, ...state.stale];
+  return state.hot;
 }
 
 function saveSettings(): void {
@@ -254,7 +257,7 @@ async function syncSeed(force = false): Promise<void> {
   for (const url of urls) {
     try {
       const text = await gmFetch(url);
-      const titles = parseSeed(text.slice(0, 512 * 1024));
+      const titles = parseSeed(text.slice(0, REMOTE_MAX_BYTES));
       if (titles.length < 10) throw new Error(`只解析到 ${titles.length} 条`);
       const now = Date.now();
       const entries = replaceOrigin(poolEntries(), 'remote', titles, now);
@@ -294,7 +297,7 @@ async function syncUps(force = false): Promise<void> {
   for (const url of urls) {
     try {
       const text = await gmFetch(url);
-      const remote = parseUpsFile(text.slice(0, 512 * 1024));
+      const remote = parseUpsFile(text.slice(0, REMOTE_MAX_BYTES));
       if (!remote.length) throw new Error('没有解析到条目');
       state.ups = { entries: mergeUps(state.ups.entries, remote), updatedAt: Date.now() };
       writeJson(KEYS.ups, state.ups);
