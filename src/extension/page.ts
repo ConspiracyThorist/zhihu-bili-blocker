@@ -1,4 +1,4 @@
-import { prepareHot, type HotEntry } from '../core/engine';
+import { preparePool, type HotEntry } from '../core/engine';
 import { installFeedHook } from '../core/hook';
 import { DEFAULT_SETTINGS, type Settings } from '../core/types';
 
@@ -52,11 +52,9 @@ window.addEventListener('message', (event: MessageEvent) => {
   state.blockedUps = new Set(blocked.filter((n) => Number.isFinite(n) && n > 0));
   const titles = Array.isArray(payload.titles) ? (payload.titles as string[]) : [];
   const staleTitles = Array.isArray(payload.staleTitles) ? (payload.staleTitles as string[]) : [];
-  state.hot = [
-    ...prepareHot(titles),
-    // 老条目单独标记：engine 会给它们抬高分数线
-    ...prepareHot(staleTitles).map((entry) => ({ ...entry, stale: true })),
-  ];
+  // 标题在这里才建 bigram 表和倒排索引：题库上万条时这一步是几十毫秒，
+  // 放在 MAIN world 做一次，比把带 Map 的条目从隔离世界克隆过来便宜得多。
+  state.hot = preparePool(titles, staleTitles);
   debug.hotLen = state.hot.length;
 
   // content 明确说「已读完 storage」就算就绪：哪怕题库是空的，
