@@ -2,7 +2,7 @@
 // @name         知乎热榜屏蔽B站推荐
 // @name:en      Zhihu Hot List Blocker for Bilibili
 // @namespace    zhihu-bili-blocker
-// @version      0.0.3
+// @version      0.1.0
 // @description  把知乎热榜当过滤字典，在 B 站首页推荐里按标题模糊匹配，命中就在渲染前摘掉搬运视频
 // @description:en  Block Bilibili home feed videos that copy Zhihu hot-list questions, matched by title before render
 // @author       ConspiracyThorist
@@ -30,43 +30,49 @@
 "use strict";
 (() => {
   // src/core/dice.ts
-  function bigramMap(s) {
-    const map = /* @__PURE__ */ new Map();
-    if (s.length < 2) {
-      if (s.length === 1) map.set(s, 1);
-      return map;
+  function gramHash(g) {
+    let h = 2166136261;
+    for (let i = 0; i < g.length; i += 1) {
+      h ^= g.charCodeAt(i);
+      h = Math.imul(h, 16777619);
     }
-    for (let i = 0; i < s.length - 1; i += 1) {
-      const g = s.slice(i, i + 2);
-      map.set(g, (map.get(g) ?? 0) + 1);
-    }
-    return map;
+    return h >>> 0;
   }
-  function gramTotal(map) {
-    let total = 0;
-    for (const n of map.values()) total += n;
-    return total;
+  function hashBigrams(s) {
+    if (!s) return { hashes: new Uint32Array(0), total: 0 };
+    if (s.length < 2) return { hashes: Uint32Array.from([gramHash(s)]), total: 1 };
+    const out = new Uint32Array(s.length - 1);
+    for (let i = 0; i < s.length - 1; i += 1) out[i] = gramHash(s.slice(i, i + 2));
+    out.sort();
+    return { hashes: out, total: out.length };
   }
-  function diceFromMaps(a, aTotal, b, bTotal) {
-    if (aTotal === 0 || bTotal === 0) return 0;
+  function sortedOverlap(a, b) {
+    let i = 0;
+    let j = 0;
     let overlap = 0;
-    const [small, big] = a.size <= b.size ? [a, b] : [b, a];
-    for (const [g, n] of small) {
-      const m = big.get(g);
-      if (m) overlap += Math.min(n, m);
+    while (i < a.length && j < b.length) {
+      const x = a[i];
+      const y = b[j];
+      if (x === y) {
+        overlap += 1;
+        i += 1;
+        j += 1;
+      } else if (x < y) {
+        i += 1;
+      } else {
+        j += 1;
+      }
     }
-    return 2 * overlap / (aTotal + bTotal);
+    return overlap;
   }
-  function coverageFromMaps(a, aTotal, b, bTotal) {
+  function diceFromHashed(a, aTotal, b, bTotal) {
+    if (aTotal === 0 || bTotal === 0) return 0;
+    return 2 * sortedOverlap(a, b) / (aTotal + bTotal);
+  }
+  function coverageFromHashed(a, aTotal, b, bTotal) {
     const denominator = Math.min(aTotal, bTotal);
     if (denominator === 0) return 0;
-    let overlap = 0;
-    const [small, big] = a.size <= b.size ? [a, b] : [b, a];
-    for (const [g, n] of small) {
-      const m = big.get(g);
-      if (m) overlap += Math.min(n, m);
-    }
-    return overlap / denominator;
+    return sortedOverlap(a, b) / denominator;
   }
 
   // src/core/normalize.ts
@@ -138,12 +144,42 @@
       const norm = normalize(raw);
       if (!norm || seen.has(norm)) continue;
       seen.add(norm);
-      const grams = bigramMap(norm);
-      out.push({ raw, norm, grams, gramTotal: gramTotal(grams) });
+      const grams = hashBigrams(norm);
+      out.push({ raw, norm, hashes: grams.hashes, gramTotal: grams.total });
     }
     return out;
   }
   var MIN_LEN_RATIO = 0.3;
+  var INDEXES = /* @__PURE__ */ new WeakMap();
+  function buildIndex(entries) {
+    const postings = /* @__PURE__ */ new Map();
+    for (let i = 0; i < entries.length; i += 1) {
+      const hashes = entries[i].hashes;
+      if (!hashes) continue;
+      let prev = -1;
+      for (let k = 0; k < hashes.length; k += 1) {
+        const h = hashes[k];
+        if (h === prev) continue;
+        prev = h;
+        const list = postings.get(h);
+        if (list) list.push(i);
+        else postings.set(h, [i]);
+      }
+    }
+    return { postings };
+  }
+  function attachIndex(entries) {
+    INDEXES.set(entries, buildIndex(entries));
+    return entries;
+  }
+  var WORK_BUDGET = 3e4;
+  function preparePool(titles, staleTitles = []) {
+    const entries = [
+      ...prepareHot(titles),
+      ...prepareHot(staleTitles).map((entry) => ({ ...entry, stale: true }))
+    ];
+    return attachIndex(entries);
+  }
   function matchTitle(biliTitle, hot, settings) {
     if (!settings.enabled || hot.length === 0) return NO_HIT;
     const norm = normalize(biliTitle);
@@ -155,42 +191,120 @@
     }
     const threshold = clamp(settings.threshold, 0.5, 0.98);
     const minLen = Math.max(2, settings.minLen);
+    const q = norm.length >= 2 ? hashBigrams(norm) : null;
+    const qTotal = q ? q.total : 0;
+    const index = INDEXES.get(hot);
+    if (index && q && norm.length >= minLen) {
+      const viaIndex = matchCandidates(norm, q.hashes, qTotal, hot, index, threshold, minLen);
+      if (viaIndex) return viaIndex;
+    }
+    return matchLinear(norm, q ? q.hashes : null, qTotal, hot, threshold, minLen);
+  }
+  function matchCandidates(norm, qHashes, qTotal, hot, index, threshold, minLen) {
+    const ub = /* @__PURE__ */ new Map();
+    let work = 0;
+    let prev = -1;
+    let count = 0;
+    for (let k = 0; k <= qHashes.length; k += 1) {
+      const h = k < qHashes.length ? qHashes[k] : -1;
+      if (h === prev) {
+        count += 1;
+        continue;
+      }
+      if (prev !== -1) {
+        const list = index.postings.get(prev);
+        if (list) {
+          work += list.length;
+          if (work > WORK_BUDGET) return null;
+          for (let j = 0; j < list.length; j += 1) {
+            const i = list[j];
+            ub.set(i, (ub.get(i) ?? 0) + count);
+          }
+        }
+      }
+      prev = h;
+      count = 1;
+    }
+    const order = [...ub.keys()].sort((a, b) => a - b);
     let best = NO_HIT;
-    const qGrams = norm.length >= 2 ? bigramMap(norm) : null;
-    const qTotal = qGrams ? gramTotal(qGrams) : 0;
+    for (const i of order) {
+      const entry = hot[i];
+      if (entry.norm === norm) return { hit: true, score: 1, zhihuTitle: entry.raw, reason: "exact" };
+    }
+    for (const i of order) {
+      const entry = hot[i];
+      const entryHashes = entry.hashes;
+      if (!entryHashes) continue;
+      const entryThreshold = Math.min(0.98, threshold + (entry.stale ? 0.05 : 0));
+      const eTotal = entry.gramTotal ?? entryHashes.length;
+      if ((ub.get(i) ?? 0) < entryThreshold * Math.min(qTotal, eTotal)) continue;
+      const shorterLen = Math.min(norm.length, entry.norm.length);
+      const longerLen = Math.max(norm.length, entry.norm.length);
+      if (shorterLen / longerLen < MIN_LEN_RATIO) continue;
+      best = consider(norm, qHashes, qTotal, entry, entryHashes, eTotal, entryThreshold, minLen, best);
+    }
+    return best;
+  }
+  function matchLinear(norm, qHashes, qTotal, hot, threshold, minLen) {
+    let best = NO_HIT;
     for (const entry of hot) {
       const entryThreshold = Math.min(0.98, threshold + (entry.stale ? 0.05 : 0));
       if (entry.norm === norm) {
         return { hit: true, score: 1, zhihuTitle: entry.raw, reason: "exact" };
       }
-      if (norm.length >= 2 && entry.norm.length >= 2) {
-        const shorter = norm.length <= entry.norm.length ? norm : entry.norm;
-        const longer2 = shorter === norm ? entry.norm : norm;
-        if (longer2.includes(shorter)) {
-          const ratio = shorter.length / longer2.length;
-          const need = shorter.length < minLen ? Math.max(0.95, entryThreshold) : Math.max(0.55, entryThreshold);
-          if (ratio >= need && ratio > best.score) {
-            best = { hit: true, score: round(ratio), zhihuTitle: entry.raw, reason: "contain" };
-          }
-        }
+      if (!qHashes || norm.length < minLen) {
+        best = considerContain(norm, entry, entryThreshold, minLen, best);
+        continue;
       }
-      if (!qGrams || norm.length < minLen) continue;
-      const entryGrams = entry.grams;
-      if (!entryGrams) continue;
-      const longer = Math.max(norm.length, entry.norm.length);
+      const entryHashes = entry.hashes;
+      if (!entryHashes) continue;
       const shorterLen = Math.min(norm.length, entry.norm.length);
-      if (shorterLen / longer < MIN_LEN_RATIO) continue;
-      const eTotal = entry.gramTotal ?? gramTotal(entryGrams);
-      const score = diceFromMaps(qGrams, qTotal, entryGrams, eTotal);
-      if (score >= entryThreshold && score > best.score) {
-        best = { hit: true, score: round(score), zhihuTitle: entry.raw, reason: "dice" };
+      const longerLen = Math.max(norm.length, entry.norm.length);
+      if (shorterLen / longerLen < MIN_LEN_RATIO) {
+        best = considerContain(norm, entry, entryThreshold, minLen, best);
+        continue;
       }
-      const cover = coverageFromMaps(qGrams, qTotal, entryGrams, eTotal);
-      if (cover >= entryThreshold && cover > best.score) {
-        best = { hit: true, score: round(cover), zhihuTitle: entry.raw, reason: "cover" };
-      }
+      const eTotal = entry.gramTotal ?? entryHashes.length;
+      best = considerContain(norm, entry, entryThreshold, minLen, best);
+      best = considerScored(
+        qHashes,
+        qTotal,
+        entry,
+        entryHashes,
+        eTotal,
+        entryThreshold,
+        best
+      );
     }
     return best;
+  }
+  function considerContain(norm, entry, entryThreshold, minLen, best) {
+    if (norm.length < 2 || entry.norm.length < 2) return best;
+    const shorter = norm.length <= entry.norm.length ? norm : entry.norm;
+    const longer = shorter === norm ? entry.norm : norm;
+    if (!longer.includes(shorter)) return best;
+    const ratio = shorter.length / longer.length;
+    const need = shorter.length < minLen ? Math.max(0.95, entryThreshold) : Math.max(0.55, entryThreshold);
+    if (ratio >= need && ratio > best.score) {
+      return { hit: true, score: round(ratio), zhihuTitle: entry.raw, reason: "contain" };
+    }
+    return best;
+  }
+  function considerScored(qHashes, qTotal, entry, entryHashes, eTotal, entryThreshold, best) {
+    let next = best;
+    const score = diceFromHashed(qHashes, qTotal, entryHashes, eTotal);
+    if (score >= entryThreshold && score > next.score) {
+      next = { hit: true, score: round(score), zhihuTitle: entry.raw, reason: "dice" };
+    }
+    const cover = coverageFromHashed(qHashes, qTotal, entryHashes, eTotal);
+    if (cover >= entryThreshold && cover > next.score) {
+      next = { hit: true, score: round(cover), zhihuTitle: entry.raw, reason: "cover" };
+    }
+    return next;
+  }
+  function consider(norm, qHashes, qTotal, entry, entryHashes, eTotal, entryThreshold, minLen, best) {
+    const withContain = considerContain(norm, entry, entryThreshold, minLen, best);
+    return considerScored(qHashes, qTotal, entry, entryHashes, eTotal, entryThreshold, withContain);
   }
 
   // src/core/dom.ts
@@ -599,7 +713,7 @@ a:hover > [data-zbb-up],
   }
   function prunePool(entries, now, opts = {}) {
     const maxAgeDays = opts.maxAgeDays ?? 30;
-    const maxEntries = opts.maxEntries ?? 800;
+    const maxEntries = opts.maxEntries ?? 12e3;
     const cutoff = now - maxAgeDays * DAY;
     const alive = entries.filter((e) => e.lastSeen >= cutoff);
     if (alive.length <= maxEntries) return alive;
@@ -625,7 +739,7 @@ a:hover > [data-zbb-up],
     }
     return { fresh, stale };
   }
-  function parseSeed(text, maxLines = 5e3, maxLength = 120) {
+  function parseSeed(text, maxLines = 2e4, maxLength = 120) {
     const out = [];
     const seen = /* @__PURE__ */ new Set();
     for (const line of text.split(/\r?\n/)) {
@@ -658,7 +772,7 @@ a:hover > [data-zbb-up],
       "https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/seed.txt"
     ],
     poolDays: 30,
-    poolMax: 800,
+    poolMax: 12e3,
     rsshub: "",
     upBlockEnabled: true,
     remoteUpsUrls: [
@@ -687,6 +801,7 @@ a:hover > [data-zbb-up],
     outbox: "zbb:outbox"
   };
   var RECORD_LIMIT = 50;
+  var REMOTE_MAX_BYTES = 4 * 1024 * 1024;
 
   // src/core/widget.ts
   var STYLE = `
@@ -1149,8 +1264,8 @@ a:hover > [data-zbb-up],
   }
   var state = {
     settings: { ...DEFAULT_SETTINGS, ...readJson(KEYS.settings, {}) },
-    fresh: [],
-    stale: [],
+    /** 带索引的题库池：一次建好，拦截层和兜底层共用 */
+    hot: [],
     pool: readJson(KEYS.hot, null),
     records: readJson(KEYS.records, []),
     stats: readJson(KEYS.stats, { total: 0 }),
@@ -1199,11 +1314,13 @@ a:hover > [data-zbb-up],
   }
   function rebuild() {
     const split = splitByFreshness(poolEntries(), Date.now(), 7);
-    state.fresh = prepareHot(split.fresh.map((e) => e.title));
-    state.stale = prepareHot(split.stale.map((e) => e.title)).map((e) => ({ ...e, stale: true }));
+    state.hot = preparePool(
+      split.fresh.map((e) => e.title),
+      split.stale.map((e) => e.title)
+    );
   }
   function allEntries() {
-    return [...state.fresh, ...state.stale];
+    return state.hot;
   }
   function saveSettings() {
     writeJson(KEYS.settings, state.settings);
@@ -1313,7 +1430,7 @@ a:hover > [data-zbb-up],
     for (const url of urls) {
       try {
         const text = await gmFetch(url);
-        const titles = parseSeed(text.slice(0, 512 * 1024));
+        const titles = parseSeed(text.slice(0, REMOTE_MAX_BYTES));
         if (titles.length < 10) throw new Error(`只解析到 ${titles.length} 条`);
         const now = Date.now();
         const entries = replaceOrigin(poolEntries(), "remote", titles, now);
@@ -1348,7 +1465,7 @@ a:hover > [data-zbb-up],
     for (const url of urls) {
       try {
         const text = await gmFetch(url);
-        const remote = parseUpsFile(text.slice(0, 512 * 1024));
+        const remote = parseUpsFile(text.slice(0, REMOTE_MAX_BYTES));
         if (!remote.length) throw new Error("没有解析到条目");
         state.ups = { entries: mergeUps(state.ups.entries, remote), updatedAt: Date.now() };
         writeJson(KEYS.ups, state.ups);
