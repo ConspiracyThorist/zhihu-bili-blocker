@@ -2,9 +2,11 @@
  * 题库池：本地累积、按归一标题去重、按新鲜度淘汰。
  *
  * 设计依据（2026-11-01 体检数据）：
- * - 77 条题库里只有 15.6% 能在 B 站搜到同题视频，72.7% 完全搜不到
- * - 常青问题（日报）命中率 17.0%，高于时事热点（热榜）13.3%
- * 所以：池子要小（800 上限）、按时间淘汰（30 天）、来源要覆盖常青问题。
+ * - 池子的大小由「数据供给」而不是内存决定：知乎日报能回翻到 2021-07，
+ *   加上每日热榜累积，现实可得的上限在一万条量级
+ * - 池子越大越吃匹配算力：engine 里的倒排索引把线性比对换成候选集，
+ *   2 万条时一批 20 个标题从 260 ms 降到 5 ms（见 tests/bench-match.mjs）
+ * 所以：保留 30 天、上限 12000 条，超出按最旧淘汰。
  */
 import { normalize } from './normalize';
 
@@ -55,7 +57,7 @@ export function mergePool(
 /** 淘汰：先按龄期，再按总量（最旧的先走） */
 export function prunePool(entries: PoolEntry[], now: number, opts: MergeOptions = {}): PoolEntry[] {
   const maxAgeDays = opts.maxAgeDays ?? 30;
-  const maxEntries = opts.maxEntries ?? 800;
+  const maxEntries = opts.maxEntries ?? 12000;
   const cutoff = now - maxAgeDays * DAY;
 
   const alive = entries.filter((e) => e.lastSeen >= cutoff);
@@ -92,8 +94,11 @@ export function splitByFreshness(
   return { fresh, stale };
 }
 
-/** 解析远端种子文件：一行一条，忽略 # 注释，压掉超长行 */
-export function parseSeed(text: string, maxLines = 5000, maxLength = 120): string[] {
+/**
+ * 解析远端种子文件：一行一条，忽略 # 注释，压掉超长行。
+ * maxLines 要大于题库上限，否则文件尾部的新条目会被静默截断。
+ */
+export function parseSeed(text: string, maxLines = 20000, maxLength = 120): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const line of text.split(/\r?\n/)) {
