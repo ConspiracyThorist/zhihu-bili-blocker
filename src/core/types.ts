@@ -32,7 +32,7 @@ export interface Settings {
   remoteSeedUrls: string[];
   /** 题库保留天数 */
   poolDays: number;
-  /** 题库条目上限（体检数据显示 3/4 条目无对应视频，所以不追求大池） */
+  /** 题库条目上限：一万条级别时匹配仍在一批 5 ms 内（倒排索引），再大就吃首次同步体积了 */
   poolMax: number;
   /** 可选的第三方 RSSHub 实例，留空则不启用 */
   rsshub: string;
@@ -61,7 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
     'https://fastly.jsdelivr.net/gh/ConspiracyThorist/zhihu-bili-blocker@main/seed.txt',
   ],
   poolDays: 30,
-  poolMax: 800,
+  poolMax: 12000,
   rsshub: '',
   upBlockEnabled: true,
   remoteUpsUrls: [
@@ -145,3 +145,5 @@ export const KEYS = {
 export const RECORD_LIMIT = 50;
 export const REFRESH_MINUTES = 45;
 export const FETCH_TIMEOUT_MS = 12_000;
+/** 远端文件（题库 / UP 库）读取上限：题库上万条后 seed.txt 会长到几百 KB */
+export const REMOTE_MAX_BYTES = 4 * 1024 * 1024;
